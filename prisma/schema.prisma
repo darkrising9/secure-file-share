@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  firstName String
+  lastName  String
+  email     String   @unique
+  password  String
+  role      String
+  idNumber  String   @unique
+  createdAt DateTime @default(now())
+}
+
+model PreExistingIDs {
+  id        String  @id @default(uuid())
+  studentId String? 
+  teacherId String? 
+}
+
+model File {
+  id              Int     @id @default(autoincrement())
+  fileName        String
+  filePath        String
+  recipientEmail  String
+  encryptionKey   String
+  createdAt       DateTime @default(now())
+  expiresAt       DateTime?
+}
