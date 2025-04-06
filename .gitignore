@@ -3,6 +3,10 @@
 # dependencies
 /node_modules
 
+#folders
+/encrypted_uploads
+/temp_uploads
+
 # next.js
 /.next/
 /out/

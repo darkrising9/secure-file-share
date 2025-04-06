@@ -1,144 +1,165 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card"
-import { FileUploadCard } from "@/components/file-upload-card"
-import { DownloadLinkCard } from "@/components/download-link-card"
-import { ArrowLeft, Shield } from "lucide-react"
-import Link from "next/link"
-import { toast } from "@/components/ui/use-toast"
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
+import { FileUploadCard } from "@/components/file-upload-card";
+import { DownloadLinkCard } from "@/components/download-link-card";
+import { ArrowLeft, Shield } from "lucide-react";
+import Link from "next/link";
+import { toast } from "@/components/ui/use-toast";
 
 export default function UploadPage() {
-  const [uploadComplete, setUploadComplete] = useState(false)
-  const [downloadLink, setDownloadLink] = useState("")
-  const [recipientEmail, setRecipientEmail] = useState("")
-  const [isUploading, setIsUploading] = useState(false)
+    const [uploadComplete, setUploadComplete] = useState(false);
+    const [downloadUrl, setDownloadUrl] = useState("");
+    const [isUploading, setIsUploading] = useState(false);
 
-  // ✅ Handle File Upload and API Call
-  const handleFileUpload = async (file: File, email: string) => {
-    if (!file) {
-      toast({
-        title: "Error",
-        description: "Please select a file to upload.",
-        variant: "destructive",
-      })
-      return
-    }
+    // ✅ Handle File Upload
+    const handleFileUpload = async (file: File, recipientEmail: string) => {
+        // Basic validation
+        if (!file || !recipientEmail) {
+            toast({
+                title: "Error",
+                description: "Please select a file and enter a recipient email.",
+                variant: "destructive",
+            });
+            return;
+        }
 
-    setIsUploading(true)
+        setIsUploading(true);
 
-    const formData = new FormData()
-    formData.append("file", file)
-    formData.append("email", email)
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("recipientEmail", recipientEmail);
 
-    try {
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      })
+            // Add console log to verify FormData before fetch
+            console.log("Is body FormData?", formData instanceof FormData);
+            for (let pair of formData.entries()) {
+                console.log("FormData Entry:", pair[0], pair[1]);
+            }
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || "Failed to upload file.")
-      }
+            const response = await fetch("/api/upload", {
+                method: "POST",
+                // REMOVED: headers option - Browser will set Content-Type with boundary automatically for FormData
+                // headers: {
+                //   "Content-Type": "multipart/form-data" // DO NOT SET THIS MANUALLY
+                // },
+                body: formData,
+            });
 
-      const data = await response.json()
-      setDownloadLink(data.downloadUrl)
-      setRecipientEmail(email)
-      setUploadComplete(true)
+            const responseData = await response.json(); // Read response body once
 
-      toast({
-        title: "Success",
-        description: "File uploaded and encrypted successfully!",
-      })
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "An error occurred. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsUploading(false)
-    }
-  }
+            if (!response.ok) {
+                 // Use error message from backend response if available
+                 throw new Error(responseData.error || `Failed to upload file. Status: ${response.status}`);
+            }
 
-  // ✅ Reset Upload Form
-  const handleReset = () => {
-    setUploadComplete(false)
-    setDownloadLink("")
-    setRecipientEmail("")
-  }
+             // Check if backend successfully returned the downloadUrl (as requested previously)
+            if (responseData.downloadUrl) {
+                setDownloadUrl(responseData.downloadUrl);
+                setUploadComplete(true);
 
-  return (
-    <div className="flex flex-col min-h-screen">
-      {/* ✅ Header */}
-      <header className="border-b">
-        <div className="container flex h-16 items-center justify-between px-4 md:px-6">
-          <div className="flex items-center gap-2 font-bold text-xl">
-            <Shield className="h-6 w-6" />
-            <span>SecureShare</span>
-          </div>
-          <nav className="flex gap-4 sm:gap-6">
-            <Link href="/dashboard" className="text-sm font-medium hover:underline underline-offset-4">
-              Dashboard
-            </Link>
-          </nav>
+                toast({
+                    title: "Success",
+                    description: responseData.message || "File uploaded successfully!",
+                });
+            } else {
+                 // Handle case where backend didn't return the URL (even if response.ok was true)
+                 console.error("API response missing downloadUrl:", responseData);
+                 throw new Error("Upload succeeded but failed to retrieve the download link from the response.");
+            }
+
+        } catch (error: any) {
+            toast({
+                title: "Upload Error",
+                description: error.message || "An error occurred. Please try again.",
+                variant: "destructive",
+            });
+            setUploadComplete(false); // Reset on error
+            setDownloadUrl(""); // Reset URL on error
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    // ✅ Reset Upload Form
+    const handleReset = () => {
+        setUploadComplete(false);
+        setDownloadUrl("");
+        // If FileUploadCard needs an internal reset, trigger it here
+    };
+
+    // --- Return JSX (No changes needed below this line based on the error) ---
+    return (
+        <div className="flex flex-col min-h-screen">
+            {/* ✅ Header */}
+            <header className="border-b">
+                <div className="container flex h-16 items-center justify-between px-4 md:px-6">
+                    <div className="flex items-center gap-2 font-bold text-xl">
+                        <Shield className="h-6 w-6" />
+                        <span>SecureShare</span>
+                    </div>
+                    <nav className="flex gap-4 sm:gap-6">
+                        <Link href="/dashboard" className="text-sm font-medium hover:underline underline-offset-4">
+                            Dashboard
+                        </Link>
+                    </nav>
+                </div>
+            </header>
+
+            {/* ✅ Main Content */}
+            <main className="flex-1 container max-w-4xl py-12 px-4 md:px-6">
+                <Link href="/" className="inline-flex items-center gap-1 text-sm font-medium mb-6 hover:underline">
+                    <ArrowLeft className="h-4 w-4" />
+                    Back to Home
+                </Link>
+
+                <Card className="w-full">
+                    <CardHeader>
+                        <CardTitle>Upload & Share File</CardTitle>
+                        <CardDescription>
+                            Files are encrypted with AES-256. A download link will be generated and emailed.
+                        </CardDescription>
+                    </CardHeader>
+
+                    {/* ✅ Upload or Download Card */}
+                    <CardContent>
+                        {!uploadComplete ? (
+                            <FileUploadCard onUploadComplete={handleFileUpload} isUploading={isUploading} />
+                        ) : (
+                            <DownloadLinkCard downloadUrl={downloadUrl} onReset={handleReset} />
+                        )}
+                    </CardContent>
+
+                    <CardFooter className="flex flex-col space-y-2 items-start">
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                            <p className="font-medium">Security Information:</p>
+                            <ul className="list-disc list-inside space-y-1 mt-2">
+                                <li>Files are encrypted using AES-256 encryption</li>
+                                <li>Download links expire after the specified date</li>
+                                <li>All file transfers are logged for security purposes</li>
+                            </ul>
+                        </div>
+                    </CardFooter>
+                </Card>
+            </main>
+
+            {/* ✅ Footer */}
+            <footer className="border-t py-6 md:py-0">
+                <div className="container flex flex-col items-center justify-between gap-4 md:h-16 md:flex-row px-4 md:px-6">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                        © {new Date().getFullYear()} SecureShare. All rights reserved.
+                    </p>
+                    <nav className="flex gap-4 sm:gap-6">
+                        <Link href="#" className="text-sm font-medium hover:underline underline-offset-4">
+                            Privacy Policy
+                        </Link>
+                        <Link href="#" className="text-sm font-medium hover:underline underline-offset-4">
+                            Terms of Service
+                        </Link>
+                    </nav>
+                </div>
+            </footer>
         </div>
-      </header>
-
-      {/* ✅ Main Content */}
-      <main className="flex-1 container max-w-4xl py-12 px-4 md:px-6">
-        <Link href="/" className="inline-flex items-center gap-1 text-sm font-medium mb-6 hover:underline">
-          <ArrowLeft className="h-4 w-4" />
-          Back to Home
-        </Link>
-
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle>Upload & Share File</CardTitle>
-            <CardDescription>
-              Files are encrypted with AES-256 and stored securely on the server.
-            </CardDescription>
-          </CardHeader>
-
-          {/* ✅ Upload or Download Card */}
-          <CardContent>
-            {!uploadComplete ? (
-              <FileUploadCard onUploadComplete={handleFileUpload} isUploading={isUploading} />
-            ) : (
-              <DownloadLinkCard downloadLink={downloadLink} email={recipientEmail} onReset={handleReset} />
-            )}
-          </CardContent>
-
-          <CardFooter className="flex flex-col space-y-2 items-start">
-            <div className="text-sm text-gray-500 dark:text-gray-400">
-              <p className="font-medium">Security Information:</p>
-              <ul className="list-disc list-inside space-y-1 mt-2">
-                <li>Files are encrypted using AES-256 encryption</li>
-                <li>Download links expire after the specified date</li>
-                <li>All file transfers are logged for security purposes</li>
-              </ul>
-            </div>
-          </CardFooter>
-        </Card>
-      </main>
-
-      {/* ✅ Footer */}
-      <footer className="border-t py-6 md:py-0">
-        <div className="container flex flex-col items-center justify-between gap-4 md:h-16 md:flex-row px-4 md:px-6">
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            © {new Date().getFullYear()} SecureShare. All rights reserved.
-          </p>
-          <nav className="flex gap-4 sm:gap-6">
-            <Link href="#" className="text-sm font-medium hover:underline underline-offset-4">
-              Privacy Policy
-            </Link>
-            <Link href="#" className="text-sm font-medium hover:underline underline-offset-4">
-              Terms of Service
-            </Link>
-          </nav>
-        </div>
-      </footer>
-    </div>
-  )
+    );
 }
