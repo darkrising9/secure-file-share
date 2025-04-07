@@ -16,6 +16,14 @@ interface DownloadLinkCardProps {
 }
 
 export function DownloadLinkCard({ downloadLink, email, onReset }: DownloadLinkCardProps) {
+
+  // --- VVV ADD LOGGING HERE VVV ---
+  console.log("--- Rendering DownloadLinkCard ---");
+  console.log("Prop received - downloadLink:", downloadLink);
+  console.log("Prop received - email:", email);
+  console.log("--- --- ---");
+  // --- ^^^ ADD LOGGING HERE ^^^ ---
+  
   // Using useId for accessibility - React 18 feature
   const linkInputId = useId()
   const { toast } = useToast()

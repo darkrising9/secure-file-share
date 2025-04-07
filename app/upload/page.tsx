@@ -1,82 +1,85 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react"; // Added useEffect for potential debugging later if needed
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
 import { FileUploadCard } from "@/components/file-upload-card";
 import { DownloadLinkCard } from "@/components/download-link-card";
 import { ArrowLeft, Shield } from "lucide-react";
 import Link from "next/link";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/components/ui/use-toast"; // Assuming correct path
 
 export default function UploadPage() {
     const [uploadComplete, setUploadComplete] = useState(false);
     const [downloadUrl, setDownloadUrl] = useState("");
     const [isUploading, setIsUploading] = useState(false);
+    const [recipientEmailForCard, setRecipientEmailForCard] = useState("");
 
     // ✅ Handle File Upload
     const handleFileUpload = async (file: File, recipientEmail: string) => {
         // Basic validation
         if (!file || !recipientEmail) {
-            toast({
-                title: "Error",
-                description: "Please select a file and enter a recipient email.",
-                variant: "destructive",
-            });
+            toast({ title: "Error", description: "Please select a file and enter a recipient email.", variant: "destructive" });
             return;
         }
 
         setIsUploading(true);
+        setRecipientEmailForCard(recipientEmail); // Store email for this attempt
 
         try {
             const formData = new FormData();
             formData.append("file", file);
             formData.append("recipientEmail", recipientEmail);
 
-            // Add console log to verify FormData before fetch
-            console.log("Is body FormData?", formData instanceof FormData);
-            for (let pair of formData.entries()) {
-                console.log("FormData Entry:", pair[0], pair[1]);
-            }
+            console.log("Initiating upload for:", file.name, "to:", recipientEmail); // Log initiation
 
             const response = await fetch("/api/upload", {
                 method: "POST",
-                // REMOVED: headers option - Browser will set Content-Type with boundary automatically for FormData
-                // headers: {
-                //   "Content-Type": "multipart/form-data" // DO NOT SET THIS MANUALLY
-                // },
                 body: formData,
             });
 
-            const responseData = await response.json(); // Read response body once
+            const responseData = await response.json();
+            // --- VVV Log the RAW API response VVV ---
+            console.log("Upload API Response Data:", JSON.stringify(responseData, null, 2));
+            // --- ^^^ Log the RAW API response ^^^ ---
 
             if (!response.ok) {
-                 // Use error message from backend response if available
-                 throw new Error(responseData.error || `Failed to upload file. Status: ${response.status}`);
+                console.error("Upload API Error Response:", responseData);
+                throw new Error(responseData.error || `Upload failed (Status: ${response.status})`);
             }
 
-             // Check if backend successfully returned the downloadUrl (as requested previously)
-            if (responseData.downloadUrl) {
-                setDownloadUrl(responseData.downloadUrl);
+            // --- VVV Check response structure carefully VVV ---
+            // Verify both success flag and presence of downloadUrl
+            if (responseData.success === true && responseData.downloadUrl) {
+                const receivedUrl = responseData.downloadUrl;
+                console.log("SUCCESS: API response OK and downloadUrl received:", receivedUrl);
+
+                console.log("Attempting to set state: setDownloadUrl, setUploadComplete(true)");
+                setDownloadUrl(receivedUrl);
+                // recipientEmailForCard was already set before the try block
                 setUploadComplete(true);
 
                 toast({
                     title: "Success",
                     description: responseData.message || "File uploaded successfully!",
                 });
+                 console.log("State setting calls finished.");
             } else {
-                 // Handle case where backend didn't return the URL (even if response.ok was true)
-                 console.error("API response missing downloadUrl:", responseData);
-                 throw new Error("Upload succeeded but failed to retrieve the download link from the response.");
+                // Log if response.ok was true, but success/downloadUrl is missing
+                console.error("Upload Error: Response OK, but success flag or downloadUrl missing in responseData!", responseData);
+                throw new Error("Upload succeeded technically, but couldn't get download link from API response.");
             }
+             // --- ^^^ Check response structure carefully ^^^ ---
 
         } catch (error: any) {
+            console.error("Caught error during handleFileUpload:", error); // Log the caught error
             toast({
                 title: "Upload Error",
-                description: error.message || "An error occurred. Please try again.",
+                description: error.message || "An error occurred during upload.",
                 variant: "destructive",
             });
-            setUploadComplete(false); // Reset on error
-            setDownloadUrl(""); // Reset URL on error
+            setUploadComplete(false); // Reset state on error
+            setDownloadUrl("");
+            setRecipientEmailForCard("");
         } finally {
             setIsUploading(false);
         }
@@ -84,15 +87,24 @@ export default function UploadPage() {
 
     // ✅ Reset Upload Form
     const handleReset = () => {
+        console.log("handleReset called: Clearing state.");
         setUploadComplete(false);
         setDownloadUrl("");
-        // If FileUploadCard needs an internal reset, trigger it here
+        setRecipientEmailForCard("");
     };
 
-    // --- Return JSX (No changes needed below this line based on the error) ---
+    // --- Log state before rendering ---
+    console.log("--- Rendering UploadPage ---");
+    console.log(`State: uploadComplete=${uploadComplete}, isUploading=${isUploading}`);
+    console.log(`State: downloadUrl='${downloadUrl}'`);
+    console.log(`State: recipientEmailForCard='${recipientEmailForCard}'`);
+    console.log("--- ---");
+    // --- ---
+
+    // --- Return JSX (Including Header and Footer) ---
     return (
         <div className="flex flex-col min-h-screen">
-            {/* ✅ Header */}
+            {/* ✅ Header - Included */}
             <header className="border-b">
                 <div className="container flex h-16 items-center justify-between px-4 md:px-6">
                     <div className="flex items-center gap-2 font-bold text-xl">
@@ -127,7 +139,12 @@ export default function UploadPage() {
                         {!uploadComplete ? (
                             <FileUploadCard onUploadComplete={handleFileUpload} isUploading={isUploading} />
                         ) : (
-                            <DownloadLinkCard downloadUrl={downloadUrl} onReset={handleReset} />
+                            // Passes all required props
+                            <DownloadLinkCard
+                                downloadLink={downloadUrl}
+                                email={recipientEmailForCard}
+                                onReset={handleReset}
+                             />
                         )}
                     </CardContent>
 
@@ -144,22 +161,22 @@ export default function UploadPage() {
                 </Card>
             </main>
 
-            {/* ✅ Footer */}
-            <footer className="border-t py-6 md:py-0">
-                <div className="container flex flex-col items-center justify-between gap-4 md:h-16 md:flex-row px-4 md:px-6">
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                        © {new Date().getFullYear()} SecureShare. All rights reserved.
-                    </p>
-                    <nav className="flex gap-4 sm:gap-6">
-                        <Link href="#" className="text-sm font-medium hover:underline underline-offset-4">
-                            Privacy Policy
-                        </Link>
-                        <Link href="#" className="text-sm font-medium hover:underline underline-offset-4">
-                            Terms of Service
-                        </Link>
-                    </nav>
-                </div>
-            </footer>
+             {/* ✅ Footer - Included */}
+             <footer className="border-t py-6 md:py-0">
+                 <div className="container flex flex-col items-center justify-between gap-4 md:h-16 md:flex-row px-4 md:px-6">
+                     <p className="text-sm text-gray-500 dark:text-gray-400">
+                         © {new Date().getFullYear()} SecureShare. All rights reserved.
+                     </p>
+                     <nav className="flex gap-4 sm:gap-6">
+                         <Link href="#" className="text-sm font-medium hover:underline underline-offset-4">
+                             Privacy Policy
+                         </Link>
+                         <Link href="#" className="text-sm font-medium hover:underline underline-offset-4">
+                             Terms of Service
+                         </Link>
+                     </nav>
+                 </div>
+             </footer>
         </div>
     );
 }
