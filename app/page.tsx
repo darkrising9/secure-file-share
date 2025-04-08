@@ -5,22 +5,7 @@ import { Button } from "@/components/ui/button"
 export default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
-      <header className="border-b">
-        <div className="container flex h-16 items-center justify-between px-4 md:px-6">
-          <div className="flex items-center gap-2 font-bold text-xl">
-            <Shield className="h-6 w-6" />
-            <span>SecureShare</span>
-          </div>
-          <nav className="flex gap-4 sm:gap-6">
-            <Link href="/login" className="text-sm font-medium hover:underline underline-offset-4">
-              Sign In
-            </Link>
-            <Link href="/register" className="text-sm font-medium hover:underline underline-offset-4">
-              Register
-            </Link>
-          </nav>
-        </div>
-      </header>
+ 
       <main className="flex-1">
         <section className="w-full py-12 md:py-24 lg:py-32">
           <div className="container px-4 md:px-6">

@@ -105,25 +105,13 @@ export default function UploadPage() {
     return (
         <div className="flex flex-col min-h-screen">
             {/* ✅ Header - Included */}
-            <header className="border-b">
-                <div className="container flex h-16 items-center justify-between px-4 md:px-6">
-                    <div className="flex items-center gap-2 font-bold text-xl">
-                        <Shield className="h-6 w-6" />
-                        <span>SecureShare</span>
-                    </div>
-                    <nav className="flex gap-4 sm:gap-6">
-                        <Link href="/dashboard" className="text-sm font-medium hover:underline underline-offset-4">
-                            Dashboard
-                        </Link>
-                    </nav>
-                </div>
-            </header>
+            
 
             {/* ✅ Main Content */}
             <main className="flex-1 container max-w-4xl py-12 px-4 md:px-6">
-                <Link href="/" className="inline-flex items-center gap-1 text-sm font-medium mb-6 hover:underline">
+                <Link href="/dashboard" className="inline-flex items-center gap-1 text-sm font-medium mb-6 hover:underline">
                     <ArrowLeft className="h-4 w-4" />
-                    Back to Home
+                    Back to Dashboard
                 </Link>
 
                 <Card className="w-full">

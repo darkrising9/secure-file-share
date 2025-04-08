@@ -103,11 +103,16 @@ export async function POST(req: NextRequest) {
         // 5. Store Metadata in Database
         const savedFile = await prisma.file.create({
             data: {
-                fileName: originalFilename, filePath: encryptedFilePath, mimeType: mimeType, size: size,
-                recipientEmail: recipientEmail,
-                // uploaderId: uploader.id, // Optional
-                iv: iv.toString("hex"), authTag: authTag.toString("hex"),
-                downloadToken: downloadToken, tokenExpiresAt: tokenExpiresAt,
+                fileName: originalFilename, 
+                filePath: encryptedFilePath, 
+                mimeType: mimeType, 
+                size: size,
+                recipientEmail: recipientEmail, 
+                uploaderId: uploader.id, // Optional
+                iv: iv.toString("hex"), 
+                authTag: authTag.toString("hex"),
+                downloadToken: downloadToken, 
+                tokenExpiresAt: tokenExpiresAt,
             },
             select: { id: true }
         });
@@ -125,7 +130,7 @@ export async function POST(req: NextRequest) {
         // 7. Send Email Notification (Using the updated PAGE URL)
         try {
              await transporter.sendMail({
-                 from: `"Your App Name" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+                 from: `"SecureShare - Encrypted File Sharing" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
                  to: recipientEmail,
                  subject: "Secure file shared with you", // Slightly different subject maybe
                  text: `User ${uploader.email} has shared a secure file with you. View file details and download here (link expires in ${tokenExpiryHours} hours): ${downloadUrl}`,
