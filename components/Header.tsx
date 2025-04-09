@@ -17,12 +17,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { LogOut, LayoutDashboard, User as UserIcon, Loader2, Shield, Upload } from "lucide-react";
 
-// Helper function for Avatar initials
+// Helper function for Avatar initials (using firstName)
 const getInitials = (firstName?: string | null, email?: string): string => {
     if (firstName) {
-        const names = firstName.split(' ');
-        if (names.length > 1) {
-            return `<span class="math-inline">\{names\[0\]\[0\]\}</span>{names[names.length - 1][0]}`.toUpperCase();
+        const names = firstName.trim().split(' ');
+        if (names.length > 1 && names[names.length - 1]) {
+            return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
         }
         return firstName.substring(0, 2).toUpperCase();
     }
@@ -34,20 +34,28 @@ const getInitials = (firstName?: string | null, email?: string): string => {
 
 
 export function Header() {
-  const { user, isLoading } = useUser(); // Get user state from context
+  const { user, isLoading, refetchUser } = useUser(); // Get user state from context
   const router = useRouter();
 
   const handleLogout = async () => {
     console.log("Attempting logout via profile dropdown...");
     try {
-      await fetch("/api/logout", { method: "GET" }); // Call backend to clear cookie
+        const res = await fetch("/api/logout", { method: "GET" });
+        if (res.ok) {
+            console.log("Logout API successful, refetching user context...");
+            // --- VVV Call refetchUser on Success VVV ---
+            await refetchUser(); // Call the function from context
+            console.log("User context refetched after logout.");
+            // --- ^^^ Call refetchUser on Success ^^^ ---
+        } else {
+             console.error("Logout API call failed:", res.status);
+             // Optional: Show error toast
+        }
     } catch (error) {
       console.error("Error calling logout API:", error);
+      // Optional: Show error toast
     } finally {
-      // Redirect to homepage/login page after attempting logout
-      router.push("/");
-      // Optional: could force reload if state isn't updating reliably after push
-      // window.location.href = '/';
+      router.push("/"); // Redirect after attempting logout and refetch
     }
   };
 
@@ -62,64 +70,49 @@ export function Header() {
 
         {/* Navigation & Profile Section (Right Side) */}
         <div className="flex items-center gap-4 sm:gap-6">
-          {/* Show different nav links based on auth state potentially */}
-          
+          {/* Logged-in Nav Links */}
+          {user && ( // Only show Upload/Dashboard if user is logged in
+            <>
+                
+            </>
+           )}
 
-          {/* Profile Dropdown Area */}
+          {/* Profile / Auth Area */}
           <div className="flex items-center">
             {isLoading ? (
-              // Loading State Placeholder
-              <div className="flex items-center justify-center h-9 w-9">
-                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              </div>
+               // Loading State Placeholder
+               <div className="flex items-center justify-center h-9 w-9"> <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> </div>
             ) : user ? (
-              // User Logged In: Dropdown Menu
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-                    <Avatar className="h-9 w-9 border"> {/* Added border */}
-                      {/* If you add user.imageUrl to UserProfile and API: */}
-                      {/* <AvatarImage src={user.imageUrl || undefined} alt={user.name || user.email} /> */}
-                      <AvatarFallback>{getInitials(user.firstName, user.email)}</AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none truncate" title={user.firstName || user.email}>
-                        {user.firstName || user.email} {/* Show name or email */}
-                      </p>
-                      <p className="text-xs leading-none text-muted-foreground truncate" title={user.email}>
-                        {user.email}
-                      </p>
-                      {user.role && (
-                         <p className="text-xs leading-none text-muted-foreground capitalize pt-1">
-                            Role: {user.role}
-                         </p>
-                      )}
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild className="cursor-pointer">
-                    <Link href="/dashboard">
-                      <LayoutDashboard className="mr-2 h-4 w-4" />
-                      <span>Dashboard</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onSelect={handleLogout} className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Log out</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+               // User Logged In: Dropdown Menu (Unchanged)
+               <DropdownMenu>
+                   <DropdownMenuTrigger asChild> 
+                    <Button variant="ghost" className="relative h-9 w-9 rounded-full">
+                      <Avatar className="h-9 w-9 border">
+                        <AvatarFallback>{getInitials(user.firstName, user.email)}</AvatarFallback>
+                      </Avatar>
+                    </Button>
+                   </DropdownMenuTrigger>
+                   <DropdownMenuContent className="w-56" align="end" forceMount>
+                       <DropdownMenuLabel className="font-normal"> <div className="flex flex-col space-y-1"> <p className="text-sm font-medium leading-none truncate" title={user.firstName || user.email}> {user.firstName || user.email} </p> <p className="text-xs leading-none text-muted-foreground truncate" title={user.email}> {user.email} </p> {user.role && ( <p className="text-xs leading-none text-muted-foreground capitalize pt-1"> Role: {user.role} </p> )} </div> </DropdownMenuLabel>
+                       <DropdownMenuSeparator />
+                       <DropdownMenuItem asChild className="cursor-pointer"><Link href="/dashboard"><LayoutDashboard className="mr-2 h-4 w-4" /><span>Dashboard</span></Link></DropdownMenuItem>
+                       <DropdownMenuItem disabled><UserIcon className="mr-2 h-4 w-4" /><span>Settings</span></DropdownMenuItem>
+                       <DropdownMenuSeparator />
+                       <DropdownMenuItem onSelect={handleLogout} className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"><LogOut className="mr-2 h-4 w-4" /><span>Log out</span></DropdownMenuItem>
+                   </DropdownMenuContent>
+               </DropdownMenu>
             ) : (
-              // User Logged Out: Login Button
-              <Link href="/login">
-                <Button variant="outline" size="sm">Login</Button>
-              </Link>
+               // --- VVV MODIFICATION: Logged Out State - Show Login AND Register VVV ---
+               // User Logged Out: Show Login and Register buttons
+               <div className="flex items-center gap-2">
+                   <Link href="/register">
+                       <Button variant="outline" size="sm">Register</Button>
+                   </Link>
+                   <Link href="/login">
+                       <Button variant="default" size="sm">Login</Button> {/* Using default style for Login */}
+                   </Link>
+               </div>
+               // --- ^^^ MODIFICATION ^^^ ---
             )}
           </div>
         </div>

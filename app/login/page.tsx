@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Shield } from 'lucide-react'
 import Link from 'next/link'
+import { useUser } from '@/context/UserContext';
 import { toast } from '@/components/ui/use-toast' // Toast notifications
 import {
   Card,
@@ -22,6 +23,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+  const { refetchUser } = useUser();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -39,6 +41,8 @@ export default function LoginPage() {
       if (!res.ok) {
         throw new Error(data.error || 'Login failed')
       }
+
+      await refetchUser();
 
       // show success toast notification
       toast({

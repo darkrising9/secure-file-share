@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/use-toast";
-
+import { useUser } from '@/context/UserContext'; 
 import { useState } from "react";
 import Link from "next/link";
 import { Shield, AlertCircle } from "lucide-react";
@@ -35,6 +35,7 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const router = useRouter();
+  const { refetchUser } = useUser();
 
   // Handle role change and reset ID number
   const handleRoleChange = (value: string) => {
@@ -87,6 +88,23 @@ export default function RegisterPage() {
           title: "Registration Successful",
           description: "Your account has been created. Redirecting...",
         });
+
+        try {
+          console.log("Registration successful, refetching user context...");
+          await refetchUser(); // Call the context function to fetch the new user state
+          console.log("User context refetched after registration.");
+
+          // Redirect AFTER refetching context
+          router.push('/dashboard');
+
+      } catch (refetchError) {
+          // Handle potential errors during refetch itself if needed
+          console.error("Error refetching user after registration:", refetchError);
+          // Maybe redirect to login page instead if refetch fails?
+           toast({ title: "Login sync error", description: "Please log in manually.", variant: "default"});
+           router.push('/login');
+      }
+
 
         // ✅ Save token to localStorage
         if (data.token) {

@@ -5,7 +5,7 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { UserProvider } from "@/context/UserContext"
 import { Toaster } from "@/components/ui/toaster";
-import { ConditionalHeader } from "@/components/ConditionalHeader"; // --- VVV IMPORT Header VVV ---
+import { Header } from "@/components/Header"; // --- VVV IMPORT Header VVV ---
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -31,7 +31,7 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             {/* --- VVV Render Header Here VVV --- */}
-            <ConditionalHeader />
+            <Header />
             {/* --- ^^^ Render Header Here ^^^ --- */}
 
             {/* --- VVV Wrap children in main tag for content VVV --- */}
