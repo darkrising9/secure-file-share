@@ -54,7 +54,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
                 }
             } else {
                 // Handle non-OK responses (e.g., 401 Unauthorized, 500)
-                console.error('UserContext: Failed to fetch user data, status:', res.status);
+                console.error('UserContext: Failed to fetch user data, status:, ${res.status}');
                 setUser(null);
             }
         } catch (error) {

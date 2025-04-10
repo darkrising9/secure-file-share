@@ -17,6 +17,7 @@ model User {
   idNumber  String   @unique
   createdAt DateTime @default(now())
   filesUploaded File[] @relation("UploadedFiles") // Lists files uploaded by this user
+  filesReceived File[] @relation("ReceivedFiles")
 }
 
 model PreExistingIDs {
@@ -39,5 +40,7 @@ model File {
   createdAt       DateTime @default(now())
   uploaderId      String   // Foreign Key: MUST match the type of User 'id' (String or Int)
   uploader        User     @relation("UploadedFiles", fields: [uploaderId], references: [id])
+  recipientId     String?  // Or Int? - Make type match User ID, add @index
+  recipient       User?    @relation("ReceivedFiles", fields: [recipientId], references: [id])
 }
 

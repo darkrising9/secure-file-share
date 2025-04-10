@@ -109,6 +109,7 @@ export async function POST(req: NextRequest) {
                 size: size,
                 recipientEmail: recipientEmail, 
                 uploaderId: uploader.id, // Optional
+                recipientId: recipientUser.id,
                 iv: iv.toString("hex"), 
                 authTag: authTag.toString("hex"),
                 downloadToken: downloadToken, 
