@@ -141,7 +141,7 @@ export default function UploadPage() {
                             <p className="font-medium">Security Information:</p>
                             <ul className="list-disc list-inside space-y-1 mt-2">
                                 <li>Files are encrypted using AES-256 encryption</li>
-                                <li>Download links expire after the specified date</li>
+                                <li>Download links expire after 24 hours</li>
                                 <li>All file transfers are logged for security purposes</li>
                             </ul>
                         </div>

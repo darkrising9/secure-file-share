@@ -35,7 +35,7 @@ export default function Home() {
             <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
               <div className="flex flex-col items-center space-y-2 border rounded-lg p-6 bg-white dark:bg-gray-950">
                 <Lock className="h-12 w-12 text-primary" />
-                <h3 className="text-xl font-bold">End-to-End Encryption</h3>
+                <h3 className="text-xl font-bold">Secure Encryption</h3>
                 <p className="text-sm text-center text-gray-500 dark:text-gray-400">
                   AES-256 encryption for all uploaded files ensures your data remains secure.
                 </p>
@@ -44,7 +44,7 @@ export default function Home() {
                 <Shield className="h-12 w-12 text-primary" />
                 <h3 className="text-xl font-bold">Role-Based Access</h3>
                 <p className="text-sm text-center text-gray-500 dark:text-gray-400">
-                  Teachers upload, students download. Strict access controls for your files.
+                  Strict access controls for your files. 
                 </p>
               </div>
               <div className="flex flex-col items-center space-y-2 border rounded-lg p-6 bg-white dark:bg-gray-950">
