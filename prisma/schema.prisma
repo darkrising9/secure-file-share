@@ -18,6 +18,7 @@ model User {
   createdAt DateTime @default(now())
   filesUploaded File[] @relation("UploadedFiles") // Lists files uploaded by this user
   filesReceived File[] @relation("ReceivedFiles")
+  status String @default("active")
 }
 
 model PreExistingIDs {

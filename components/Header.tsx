@@ -70,12 +70,9 @@ export function Header() {
 
         {/* Navigation & Profile Section (Right Side) */}
         <div className="flex items-center gap-4 sm:gap-6">
-          {/* Logged-in Nav Links */}
-          {user && ( // Only show Upload/Dashboard if user is logged in
-            <>
-                
-            </>
-           )}
+          {/* --- VVV Added Logged-in Nav Links VVV --- */}
+          {/* Show Upload/Dashboard links in main nav only if user is logged in */}
+           {/* --- ^^^ Added Logged-in Nav Links ^^^ --- */}
 
           {/* Profile / Auth Area */}
           <div className="flex items-center">
@@ -83,36 +80,66 @@ export function Header() {
                // Loading State Placeholder
                <div className="flex items-center justify-center h-9 w-9"> <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> </div>
             ) : user ? (
-               // User Logged In: Dropdown Menu (Unchanged)
+               // User Logged In: Dropdown Menu
                <DropdownMenu>
-                   <DropdownMenuTrigger asChild> 
-                    <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-                      <Avatar className="h-9 w-9 border">
-                        <AvatarFallback>{getInitials(user.firstName, user.email)}</AvatarFallback>
-                      </Avatar>
-                    </Button>
+                   <DropdownMenuTrigger asChild>
+                       <Button variant="ghost" className="relative h-9 w-9 rounded-full">
+                           <Avatar className="h-9 w-9 border">
+                               <AvatarFallback>{getInitials(user.firstName, user.email)}</AvatarFallback>
+                           </Avatar>
+                       </Button>
                    </DropdownMenuTrigger>
                    <DropdownMenuContent className="w-56" align="end" forceMount>
-                       <DropdownMenuLabel className="font-normal"> <div className="flex flex-col space-y-1"> <p className="text-sm font-medium leading-none truncate" title={user.firstName || user.email}> {user.firstName || user.email} </p> <p className="text-xs leading-none text-muted-foreground truncate" title={user.email}> {user.email} </p> {user.role && ( <p className="text-xs leading-none text-muted-foreground capitalize pt-1"> Role: {user.role} </p> )} </div> </DropdownMenuLabel>
+                       <DropdownMenuLabel className="font-normal">
+                            <div className="flex flex-col space-y-1">
+                               <p className="text-sm font-medium leading-none truncate" title={user.firstName || user.email}> {user.firstName || user.email} </p>
+                               <p className="text-xs leading-none text-muted-foreground truncate" title={user.email}> {user.email} </p>
+                               {user.role && ( <p className="text-xs leading-none text-muted-foreground capitalize pt-1"> Role: {user.role} </p> )}
+                           </div>
+                       </DropdownMenuLabel>
                        <DropdownMenuSeparator />
-                       <DropdownMenuItem asChild className="cursor-pointer"><Link href="/dashboard"><LayoutDashboard className="mr-2 h-4 w-4" /><span>Dashboard</span></Link></DropdownMenuItem>
-                       <DropdownMenuItem disabled><UserIcon className="mr-2 h-4 w-4" /><span>Settings</span></DropdownMenuItem>
+
+                       {/* --- VVV Conditional Dashboard Link based on Role VVV --- */}
+                       {user?.role === 'admin' ? (
+                         // Link for Admins
+                         <DropdownMenuItem asChild className="cursor-pointer">
+                           <Link href="/admin/dashboard"> {/* Points to Admin path */}
+                             <LayoutDashboard className="mr-2 h-4 w-4" />
+                             <span>Admin Dashboard</span> {/* Specific text */}
+                           </Link>
+                         </DropdownMenuItem>
+                       ) : (
+                         // Link for non-Admins (Teachers, Students, etc.)
+                         <DropdownMenuItem asChild className="cursor-pointer">
+                           <Link href="/dashboard"> {/* Points to regular path */}
+                             <LayoutDashboard className="mr-2 h-4 w-4" />
+                             <span>Dashboard</span> {/* Generic text */}
+                           </Link>
+                         </DropdownMenuItem>
+                       )}
+                       {/* --- ^^^ Conditional Dashboard Link based on Role ^^^ --- */}
+
+                       <DropdownMenuItem disabled> {/* Settings Link */}
+                         <UserIcon className="mr-2 h-4 w-4" />
+                         <span>Settings</span>
+                       </DropdownMenuItem>
                        <DropdownMenuSeparator />
-                       <DropdownMenuItem onSelect={handleLogout} className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"><LogOut className="mr-2 h-4 w-4" /><span>Log out</span></DropdownMenuItem>
+                       <DropdownMenuItem onSelect={handleLogout} className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer">
+                           <LogOut className="mr-2 h-4 w-4" />
+                           <span>Log out</span>
+                       </DropdownMenuItem>
                    </DropdownMenuContent>
                </DropdownMenu>
             ) : (
-               // --- VVV MODIFICATION: Logged Out State - Show Login AND Register VVV ---
-               // User Logged Out: Show Login and Register buttons
+               // Logged Out State - Login/Register buttons
                <div className="flex items-center gap-2">
                    <Link href="/register">
                        <Button variant="outline" size="sm">Register</Button>
                    </Link>
                    <Link href="/login">
-                       <Button variant="default" size="sm">Login</Button> {/* Using default style for Login */}
+                       <Button variant="default" size="sm">Login</Button>
                    </Link>
                </div>
-               // --- ^^^ MODIFICATION ^^^ ---
             )}
           </div>
         </div>

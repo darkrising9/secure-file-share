@@ -50,8 +50,15 @@ export default function LoginPage() {
         description: 'Redirecting to your dashboard...',
       })
 
-      // Redirect to /dashboard immediately after successful login
-      router.push('/dashboard')
+
+      if (data.user?.role === 'admin') {
+        console.log("Admin user detected, redirecting to admin dashboard.");
+        router.push('/admin/dashboard'); // Or '/admin/admindashboard' if that's your path
+    } else {
+        console.log("Non-admin user detected, redirecting to main dashboard.");
+        router.push('/dashboard');
+    }
+
     } catch (err: any) {
       toast({
         title: 'Login failed',

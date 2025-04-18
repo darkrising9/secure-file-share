@@ -44,7 +44,7 @@ interface UserJwtPayload extends JWTPayload {
  * @returns A Promise resolving to the user object { id: string, email: string } if authentication
  * is successful and the user exists, otherwise returns null.
  */
-export async function getCurrentUser(request: NextRequest): Promise<{ id: string; email: string } | null> {
+export async function getCurrentUser(request: NextRequest): Promise<{ id: string; email: string; role: string } | null> {
 
     // 1. Extract the token from the HttpOnly cookie named "token"
     const token = request.cookies.get("token")?.value;
@@ -66,12 +66,12 @@ export async function getCurrentUser(request: NextRequest): Promise<{ id: string
             console.error("Invalid JWT payload structure: 'id' missing or not a string.", payload);
             return null;
         }
-
+        const userRoleFromToken=payload.role;
         // 4. (Recommended) Fetch the user from the database using the ID from the token
         // This ensures the user still exists and you have their current details.
         const user = await prisma.user.findUnique({
             where: { id: userId }, // Pass the string ID directly
-            select: { id: true, email: true }, // Select only the fields needed
+            select: { id: true, email: true, role: true }, // Select only the fields needed
         });
 
         if (!user) {

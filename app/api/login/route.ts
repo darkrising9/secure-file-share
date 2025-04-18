@@ -57,7 +57,12 @@ export async function POST(req: Request) {
     console.log("Token generated successfully:", token)
 
     // ✅ Set token in cookie
-    const response = NextResponse.json({ message: "Login successful", token })
+    const response = NextResponse.json({ 
+      message: "Login successful", 
+      token,
+      user: { // Add user object with role
+        role: user.role
+    } })
 
     response.cookies.set("token", token, {
       httpOnly: true,
