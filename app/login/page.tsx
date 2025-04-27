@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Shield } from 'lucide-react'
 import Link from 'next/link'
 import { useUser } from '@/context/UserContext';
-import { toast } from '@/components/ui/use-toast' // Toast notifications
+import { toast } from '@/components/ui/use-toast' 
 import {
   Card,
   CardContent,
@@ -53,7 +53,7 @@ export default function LoginPage() {
 
       if (data.user?.role === 'admin') {
         console.log("Admin user detected, redirecting to admin dashboard.");
-        router.push('/admin/dashboard'); // Or '/admin/admindashboard' if that's your path
+        router.push('/admin/dashboard'); 
     } else {
         console.log("Non-admin user detected, redirecting to main dashboard.");
         router.push('/dashboard');
@@ -72,8 +72,6 @@ export default function LoginPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Header */}
-      
 
       {/* Main Content */}
       <main className="flex-1 flex items-center justify-center p-4 md:p-6">

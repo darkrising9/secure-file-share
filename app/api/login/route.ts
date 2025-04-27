@@ -3,11 +3,9 @@ import { NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import { SignJWT } from "jose"
 
-// Ensure JWT secret key is set via environment variables
 const JWT_SECRET = process.env.JWT_SECRET
 if (!JWT_SECRET) throw new Error("Missing JWT_SECRET environment variable")
 
-// Define JWT expiration and algorithm
 const JWT_ALGORITHM = "HS256"
 const JWT_EXPIRATION = "24h"
 
@@ -44,7 +42,7 @@ export async function POST(req: Request) {
       )
     }
 
-    // ✅ Generate JWT token using jose
+    // Generate JWT token using jose
     const token = await new SignJWT({
       id: user.id,
       email: user.email,
@@ -56,11 +54,11 @@ export async function POST(req: Request) {
 
     console.log("Token generated successfully:", token)
 
-    // ✅ Set token in cookie
+    // Set token in cookie
     const response = NextResponse.json({ 
       message: "Login successful", 
       token,
-      user: { // Add user object with role
+      user: { 
         role: user.role
     } })
 

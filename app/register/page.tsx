@@ -91,27 +91,25 @@ export default function RegisterPage() {
 
         try {
           console.log("Registration successful, refetching user context...");
-          await refetchUser(); // Call the context function to fetch the new user state
+          await refetchUser(); 
           console.log("User context refetched after registration.");
 
           // Redirect AFTER refetching context
           router.push('/dashboard');
 
       } catch (refetchError) {
-          // Handle potential errors during refetch itself if needed
           console.error("Error refetching user after registration:", refetchError);
-          // Maybe redirect to login page instead if refetch fails?
            toast({ title: "Login sync error", description: "Please log in manually.", variant: "default"});
            router.push('/login');
       }
 
 
-        // ✅ Save token to localStorage
+        // Save token to localStorage
         if (data.token) {
           localStorage.setItem("token", data.token);
         }
 
-        // ✅ Redirect to /upload after registration
+        // Redirect to /upload after registration
         setTimeout(() => {
           router.push(data.redirectUrl || "/dashboard");
         }, 1500);

@@ -2,26 +2,26 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import crypto from 'crypto';
-import path from 'path';
-import fs from 'fs';
-import { pipeline } from 'stream/promises';
+import crypto from 'crypto'; //node module for crypto functions
+import path from 'path'; //node module for handling file paths
+import fs from 'fs'; //node module for file system interactions
+import { pipeline } from 'stream/promises'; //node module for piping streams together
 import nodemailer from 'nodemailer';
-import { Readable } from 'stream';
-import { getCurrentUser } from '@/lib/auth-utils'; // Assuming this path is correct
+import { Readable } from 'stream'; //node module to create a stream from file buffer
+import { getCurrentUser } from '@/lib/auth-utils'; 
 
-// --- Configuration ---
+// Configuration for Encrypted Upload 
 const prisma = new PrismaClient();
 const UPLOAD_DIR = path.join(process.cwd(), "encrypted_uploads");
 
-// --- Security Critical: Encryption Setup ---
+// Encryption Setup
 const ALGORITHM = "aes-256-gcm";
 const KEY_ENV_VAR = "ENCRYPTION_KEY";
 const secretKeyHex = process.env[KEY_ENV_VAR];
 if (!secretKeyHex || secretKeyHex.length !== 64) { /* ... error handling ... */ throw new Error('Encryption key missing/invalid'); }
 const secretKey = Buffer.from(secretKeyHex, 'hex');
 
-// --- Nodemailer Transport Setup ---
+// Nodemailer Transport Setup
 const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST,
     port: parseInt(process.env.EMAIL_PORT || '587', 10),
@@ -29,7 +29,7 @@ const transporter = nodemailer.createTransport({
     auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
 });
 
-// --- Ensure Directory Exists ---
+// Ensuring Directory Exists
 async function ensureUploadDirectory() {
     try { await fs.promises.mkdir(UPLOAD_DIR, { recursive: true }); console.log("Upload directory ensured."); }
     catch (err) { console.error("Error creating upload directory:", err); throw new Error("Could not create necessary upload directory."); }
@@ -37,19 +37,19 @@ async function ensureUploadDirectory() {
 ensureUploadDirectory();
 
 
-// --- API Route Handler ---
+// POST API for Upload Pipeline
 export async function POST(req: NextRequest) {
     let encryptedFilePath: string | undefined = undefined;
 
     try {
-        // Step 0: Authenticate the Uploader
+        //Authenticating the Uploader
         const uploader = await getCurrentUser(req);
         if (!uploader) {
             return NextResponse.json({ success: false, error: "Authentication required. Please log in." }, { status: 401 });
         }
         console.log(`Upload initiated by authenticated user: ${uploader.email} (ID: ${uploader.id})`);
 
-        // 1. Parse Form Data
+        // Parsing Form Data
         const formData = await req.formData();
         const file = formData.get("file") as File | null;
         const recipientEmail = formData.get("recipientEmail") as string | null;
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
         if (!file) return NextResponse.json({ success: false, error: "No file uploaded." }, { status: 400 });
         if (!recipientEmail) return NextResponse.json({ success: false, error: "Recipient email is required." }, { status: 400 });
 
-        // 1.5 Validate Recipient Email exists in User table
+        // Validating Email of Recipient, if it exists in the table
         console.log(`Validating recipient email: ${recipientEmail}`);
         const recipientUser = await prisma.user.findUnique({ where: { email: recipientEmail }, select: { id: true } });
         if (!recipientUser) {
@@ -73,18 +73,18 @@ export async function POST(req: NextRequest) {
         const size = file.size;
 
         // File Size Check
-        const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // Example: 50MB limit
+        const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; 
         if (size > MAX_FILE_SIZE_BYTES) {
             return NextResponse.json({ success: false, error: `File size exceeds the ${MAX_FILE_SIZE_BYTES / 1024 / 1024}MB limit.` }, { status: 413 });
         }
 
-        // 2. Prepare for Encryption & Local Storage
+        // Prepare for Encryption & Local Storage
         const iv = crypto.randomBytes(12);
         const cipher = crypto.createCipheriv(ALGORITHM, secretKey, iv);
         const encryptedFileName = `${crypto.randomUUID()}.enc`;
         encryptedFilePath = path.join(UPLOAD_DIR, encryptedFileName);
 
-        // 3. Read File into Buffer using .arrayBuffer() and Create Node Stream
+        // Read File into Buffer using .arrayBuffer() and Create Node Stream
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
         const nodeStream = Readable.from(buffer);
@@ -95,12 +95,12 @@ export async function POST(req: NextRequest) {
         const authTag = cipher.getAuthTag();
         console.log("Encryption pipeline finished.");
 
-        // 4. Generate Secure Download Token
+        // Generate Secure Download Token
         const downloadToken = crypto.randomBytes(32).toString('hex');
         const tokenExpiryHours = 24;
         const tokenExpiresAt = new Date(Date.now() + tokenExpiryHours * 60 * 60 * 1000);
 
-        // 5. Store Metadata in Database
+        // Store Metadata in Database
         const savedFile = await prisma.file.create({
             data: {
                 fileName: originalFilename, 
@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
                 mimeType: mimeType, 
                 size: size,
                 recipientEmail: recipientEmail, 
-                uploaderId: uploader.id, // Optional
+                uploaderId: uploader.id, 
                 recipientId: recipientUser.id,
                 iv: iv.toString("hex"), 
                 authTag: authTag.toString("hex"),
@@ -119,33 +119,30 @@ export async function POST(req: NextRequest) {
         });
         console.log(`File metadata saved DB ID ${savedFile.id}`);
 
-        // --- VVV CHANGE MADE HERE VVV ---
-        // 6. Generate Full Download URL (Pointing to the PAGE route)
+        // Generating Full Download URL (Pointing to the PAGE route)
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
-        // Ensure this URL points to your frontend download page, not the API directly
-        const downloadUrl = `${baseUrl}/download/${downloadToken}`; // REMOVED '/api' prefix
+        const downloadUrl = `${baseUrl}/download/${downloadToken}`; 
         console.log(`Generated PAGE download URL: ${downloadUrl}`);
-        // --- ^^^ CHANGE MADE HERE ^^^ ---
 
 
-        // 7. Send Email Notification (Using the updated PAGE URL)
+        // Sending Email Notification (Using the updated PAGE URL)
         try {
              await transporter.sendMail({
                  from: `"SecureShare - Encrypted File Sharing" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
                  to: recipientEmail,
-                 subject: "Secure file shared with you", // Slightly different subject maybe
+                 subject: "Secure file shared with you", 
                  text: `User ${uploader.email} has shared a secure file with you. View file details and download here (link expires in ${tokenExpiryHours} hours): ${downloadUrl}`,
                  html: `<p>User <b>${uploader.email}</b> has shared a secure file with you.</p><p><a href="${downloadUrl}">Click here to view file details and download</a></p><p>This link expires in ${tokenExpiryHours} hours.</p>`,
              });
              console.log(`Download page link email sent successfully to ${recipientEmail}`);
         } catch (emailError) { console.error(`Failed to send download email to ${recipientEmail}:`, emailError); }
 
-        // 8. Return Success Response (Including the PAGE URL)
+        // Return Success Response - For logging purposes
         return NextResponse.json({
             success: true,
-            message: "File uploaded, encrypted, and download page link sent to registered recipient.", // Updated message
+            message: "File uploaded, encrypted, and download page link sent to registered recipient.",
             fileId: savedFile.id,
-            downloadUrl: downloadUrl // Return the PAGE URL
+            downloadUrl: downloadUrl 
         });
 
     } catch (error: any) {
@@ -155,7 +152,6 @@ export async function POST(req: NextRequest) {
          if (error.message?.includes("Authentication required")) statusCode = 401;
          else if (error.message?.includes("Recipient email does not belong")) statusCode = 404;
          else if (error.message?.includes("File size exceeds")) statusCode = 413;
-         // ... other status code checks ...
         return NextResponse.json( { success: false, error: "Failed to upload/process file: " + error.message }, { status: statusCode } );
     }
 }

@@ -1,20 +1,16 @@
-// Assuming file path is now: app/download/[token]/page.tsx
-// (If the folder is still named [id], please rename it to [token] to match the param)
+// File path : app/download/[token]/page.tsx
 
 "use client"
 
-// --- MODIFICATION 1: Import useParams ---
 import { useState, useEffect } from "react"
-import { useParams } from 'next/navigation' // Import the hook
-// --- ---
+import { useParams } from 'next/navigation'
 import Link from "next/link"
 import { Shield, Download, ArrowLeft, FileText, Loader2, AlertCircle } from "lucide-react"
-// Button import might not be needed if using <a> tag styled as button
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useToast } from "@/components/ui/use-toast"
 
-// Define the expected structure for file metadata
+// Defining the expected structure for file metadata
 interface FileMetadata {
     fileName: string;
     size: number; // Size in bytes
@@ -22,15 +18,10 @@ interface FileMetadata {
     recipientEmail?: string;
 }
 
-// --- MODIFICATION 2: Remove params from function signature ---
+// DownloadPage Function 
 export default function DownloadPage() {
-    // --- MODIFICATION 3: Get params using the hook ---
-    // Specify the expected shape of the params object (matching the folder name [token])
-    const params = useParams<{ token: string }>();
-    // Extract token safely AFTER using the hook.
-    // Add a check in case params is not ready immediately (though usually is)
+    const params = useParams<{ token: string }>(); //
     const token = params?.token;
-    // --- ---
 
     // State for loading metadata, error messages, and fetched file details
     const [isLoading, setIsLoading] = useState(true);
@@ -40,10 +31,7 @@ export default function DownloadPage() {
 
     // Fetch metadata when the component mounts or token changes
     useEffect(() => {
-        // Make sure token is available before proceeding
         if (!token) {
-            // Can potentially happen on initial render if hook isn't ready
-            // Or if the URL genuinely has no token (won't match route anyway)
             setIsLoading(false); // Stop loading if no token
             setError("Download token missing from URL."); // Set an error
             return;
@@ -88,10 +76,9 @@ export default function DownloadPage() {
         };
 
         fetchMetadata();
-        // Depend on the token obtained from the hook
     }, [token, toast]);
 
-    // Helper function to format file size (Unchanged)
+    // Helper function to format file size
     const formatFileSize = (bytes: number): string => {
         if (bytes === 0) return '0 Bytes';
         const k = 1024;
@@ -106,7 +93,6 @@ export default function DownloadPage() {
 
     return (
         <div className="flex flex-col min-h-screen">
-            {/* Header (Unchanged) */}
              
 
             {/* Main Content */}
@@ -136,7 +122,7 @@ export default function DownloadPage() {
                                     </div>
                                 </div>
 
-                                {/* Use an Anchor tag styled as a Button for direct download */}
+
                                 <a
                                     href={actualDownloadUrl} // Use the constructed URL
                                     download // Suggests browser should download
@@ -150,7 +136,6 @@ export default function DownloadPage() {
                          )}
                     </CardContent>
                     <CardFooter className="flex flex-col space-y-2 items-start">
-                         {/* Security Info Footer (Unchanged) */}
                          <div className="text-sm text-gray-500 dark:text-gray-400">
                              <p className="font-medium">Security Information:</p>
                              <ul className="list-disc list-inside space-y-1 mt-2">
@@ -163,7 +148,7 @@ export default function DownloadPage() {
                 </Card>
             </main>
 
-             {/* Footer (Unchanged) */}
+
              <footer className="border-t py-6 md:py-0">
                 <div className="container flex flex-col items-center justify-between gap-4 md:h-16 md:flex-row px-4 md:px-6">
                      <p className="text-sm text-gray-500 dark:text-gray-400"> © {new Date().getFullYear()} SecureShare. All rights reserved. </p>
