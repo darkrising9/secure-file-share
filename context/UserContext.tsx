@@ -1,30 +1,28 @@
 // File Path: context/UserContext.tsx
 
-"use client"; // Provider component manages state client-side
+"use client"; 
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 
-// Define the shape of the user data you want accessible via context
-// Ensure this matches the fields returned by /api/users/me
+
 interface UserProfile {
-    id: string; // Assuming User ID is string (CUID/UUID) based on previous errors
+    id: string; 
     email: string;
     firstName?: string | null;
     role?: string | null;
-    // Add other fields as needed
 }
 
-// Define the context value type
+
 interface UserContextType {
-    user: UserProfile | null; // Currently logged-in user or null
-    isLoading: boolean; // True while initially fetching user data
-    refetchUser: () => Promise<void>; // Function to manually trigger a refetch
+    user: UserProfile | null; 
+    isLoading: boolean; 
+    refetchUser: () => Promise<void>; 
 }
 
-// Create the context
+
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
-// Create the Provider component
+
 interface UserProviderProps {
     children: ReactNode;
 }
@@ -33,19 +31,16 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     const [user, setUser] = useState<UserProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true); // Start true on initial load/mount
 
-    // Define the fetching logic as a reusable function
+
     const fetchUser = useCallback(async () => {
-        // Don't refetch if already loading
-        // Note: You might want more sophisticated caching/deduping in complex apps
-        // if (!isLoading) { setIsLoading(true); } // Re-enable loading state on manual refetch
 
         try {
-            const res = await fetch('/api/users/me'); // Fetch from the endpoint created in Step 1
+            const res = await fetch('/api/users/me'); 
 
             if (res.ok) {
                 const data = await res.json();
                 if (data.success && data.user) {
-                    setUser(data.user); // Set user data if successful
+                    setUser(data.user);
                     // console.log('UserContext: User data loaded', data.user);
                 } else {
                     // API call okay, but no user returned (e.g., logged out)

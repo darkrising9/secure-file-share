@@ -2,36 +2,29 @@
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { jwtVerify, JWTPayload } from "jose"; // Import JWTPayload
+import { jwtVerify, JWTPayload } from "jose";
 
-// ===========================
-// ✅ Define Route Patterns
-// ===========================
+
 // General authenticated user routes
 const protectedRoutes = ["/upload", "/dashboard", "/download/", "/api/files/shared", "/api/files/revoke/", "/api/metadata/", "/api/download/", "/api/users/me", "/api/logout"];
 // Admin-only routes
-const adminRoutes = ["/admin", "/api/admin"]; // Use startsWith check later
+const adminRoutes = ["/admin", "/api/admin"]; 
 
-// ✅ Get JWT secret key (ensure it's the same as used in login/auth-utils)
+// Get JWT secret key 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
     throw new Error("FATAL ERROR: Missing JWT_SECRET environment variable for middleware.");
 }
 const secretKey = new TextEncoder().encode(JWT_SECRET);
 
-// ===========================
-// ✅ Define JWT Payload Structure
-// ===========================
-// IMPORTANT: Must match the payload generated in /api/login and expected in lib/auth-utils
+
 interface UserJwtPayload extends JWTPayload {
-    id: string | number; // Match your User ID type
+    id: string | number; 
     email?: string;
-    role?: string; // Role is crucial for admin checks
+    role?: string; 
 }
 
-// ===========================
-// ✅ JWT Verification Function (returns payload or null)
-// ===========================
+
 async function verifyTokenAndGetPayload(req: NextRequest): Promise<UserJwtPayload | null> {
   // Prioritize cookie as it's HttpOnly
   const token = req.cookies.get("token")?.value;
@@ -41,7 +34,6 @@ async function verifyTokenAndGetPayload(req: NextRequest): Promise<UserJwtPayloa
   }
 
   try {
-    // Verify the token and return the decoded payload
     const { payload } = await jwtVerify<UserJwtPayload>(token, secretKey);
     // console.log("Middleware: Token verified, payload:", payload); // Debug logging
     return payload;
@@ -54,9 +46,7 @@ async function verifyTokenAndGetPayload(req: NextRequest): Promise<UserJwtPayloa
   }
 }
 
-// ===========================
-// ✅ Middleware Handler Logic
-// ===========================
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const loginUrl = new URL("/login", req.url); // URL for redirection
@@ -104,12 +94,7 @@ export async function middleware(req: NextRequest) {
   return NextResponse.next();
 }
 
-// ===========================
-// ✅ Middleware Config (Matcher)
-// ===========================
+
 export const config = {
-  // The matcher defines which paths the middleware function will run on.
-  // It's generally better to match broadly and let the middleware function decide
-  // access, rather than trying to list every single protected path here.
-  matcher: [protectedRoutes, adminRoutes],
+  matcher: [protectedRoutes, adminRoutes]
 };

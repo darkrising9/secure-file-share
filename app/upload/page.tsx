@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react"; // Added useEffect for potential debugging later if needed
+import { useState, useEffect } from "react"; 
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
 import { FileUploadCard } from "@/components/file-upload-card";
 import { DownloadLinkCard } from "@/components/download-link-card";
 import { ArrowLeft, Shield } from "lucide-react";
 import Link from "next/link";
-import { toast } from "@/components/ui/use-toast"; // Assuming correct path
+import { toast } from "@/components/ui/use-toast"; 
 
 export default function UploadPage() {
     const [uploadComplete, setUploadComplete] = useState(false);
@@ -14,7 +14,7 @@ export default function UploadPage() {
     const [isUploading, setIsUploading] = useState(false);
     const [recipientEmailForCard, setRecipientEmailForCard] = useState("");
 
-    // ✅ Handle File Upload
+    
     const handleFileUpload = async (file: File, recipientEmail: string) => {
         // Basic validation
         if (!file || !recipientEmail) {
@@ -23,7 +23,7 @@ export default function UploadPage() {
         }
 
         setIsUploading(true);
-        setRecipientEmailForCard(recipientEmail); // Store email for this attempt
+        setRecipientEmailForCard(recipientEmail); 
 
         try {
             const formData = new FormData();
@@ -38,24 +38,20 @@ export default function UploadPage() {
             });
 
             const responseData = await response.json();
-            // --- VVV Log the RAW API response VVV ---
             console.log("Upload API Response Data:", JSON.stringify(responseData, null, 2));
-            // --- ^^^ Log the RAW API response ^^^ ---
 
             if (!response.ok) {
                 console.error("Upload API Error Response:", responseData);
                 throw new Error(responseData.error || `Upload failed (Status: ${response.status})`);
             }
 
-            // --- VVV Check response structure carefully VVV ---
-            // Verify both success flag and presence of downloadUrl
+
             if (responseData.success === true && responseData.downloadUrl) {
                 const receivedUrl = responseData.downloadUrl;
                 console.log("SUCCESS: API response OK and downloadUrl received:", receivedUrl);
 
                 console.log("Attempting to set state: setDownloadUrl, setUploadComplete(true)");
                 setDownloadUrl(receivedUrl);
-                // recipientEmailForCard was already set before the try block
                 setUploadComplete(true);
 
                 toast({
@@ -68,7 +64,6 @@ export default function UploadPage() {
                 console.error("Upload Error: Response OK, but success flag or downloadUrl missing in responseData!", responseData);
                 throw new Error("Upload succeeded technically, but couldn't get download link from API response.");
             }
-             // --- ^^^ Check response structure carefully ^^^ ---
 
         } catch (error: any) {
             console.error("Caught error during handleFileUpload:", error); // Log the caught error
@@ -85,7 +80,7 @@ export default function UploadPage() {
         }
     };
 
-    // ✅ Reset Upload Form
+
     const handleReset = () => {
         console.log("handleReset called: Clearing state.");
         setUploadComplete(false);
@@ -93,21 +88,17 @@ export default function UploadPage() {
         setRecipientEmailForCard("");
     };
 
-    // --- Log state before rendering ---
+
     console.log("--- Rendering UploadPage ---");
     console.log(`State: uploadComplete=${uploadComplete}, isUploading=${isUploading}`);
     console.log(`State: downloadUrl='${downloadUrl}'`);
     console.log(`State: recipientEmailForCard='${recipientEmailForCard}'`);
     console.log("--- ---");
-    // --- ---
 
-    // --- Return JSX (Including Header and Footer) ---
+
     return (
         <div className="flex flex-col min-h-screen">
-            {/* ✅ Header - Included */}
-            
 
-            {/* ✅ Main Content */}
             <main className="flex-1 container max-w-4xl py-12 px-4 md:px-6">
                 <Link href="/dashboard" className="inline-flex items-center gap-1 text-sm font-medium mb-6 hover:underline">
                     <ArrowLeft className="h-4 w-4" />
@@ -122,7 +113,6 @@ export default function UploadPage() {
                         </CardDescription>
                     </CardHeader>
 
-                    {/* ✅ Upload or Download Card */}
                     <CardContent>
                         {!uploadComplete ? (
                             <FileUploadCard onUploadComplete={handleFileUpload} isUploading={isUploading} />
@@ -149,7 +139,7 @@ export default function UploadPage() {
                 </Card>
             </main>
 
-             {/* ✅ Footer - Included */}
+
              <footer className="border-t py-6 md:py-0">
                  <div className="container flex flex-col items-center justify-between gap-4 md:h-16 md:flex-row px-4 md:px-6">
                      <p className="text-sm text-gray-500 dark:text-gray-400">

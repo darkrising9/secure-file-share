@@ -26,7 +26,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 
-// --- Type Definitions (Consider moving to a shared types/interfaces file) ---
+
 
 // For data returned by /api/files/shared
 interface SentFileData {
@@ -141,12 +141,10 @@ export default function DashboardPage() {
         }
       };
       fetchAllData();
-    // Disable ESLint warning because we only want this to run on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency array
 
 
-  // --- Logout Handler (Unchanged) ---
+
   const handleLogout = async () => { /* ... as before ... */ };
 
   // --- Client-Side Filtering Logic ---
@@ -156,8 +154,6 @@ export default function DashboardPage() {
         (file.fileName.toLowerCase().includes(searchTerm.toLowerCase()) ||
          file.recipientEmail.toLowerCase().includes(searchTerm.toLowerCase()))
     );
-    // Note: Status filtering based on 'activeTab' removed, as tabs now switch lists.
-    //       Could be added back as a secondary filter within each tab if needed.
   }, [sentFiles, searchTerm]);
 
   // Filter for RECEIVED files tab
@@ -170,7 +166,7 @@ export default function DashboardPage() {
     // Status filtering could be added here too if needed
   }, [receivedFiles, searchTerm]);
 
-  // --- Revoke Link Handler (Unchanged, operates on sentFiles state) ---
+
    const handleRevokeLink = async (fileId: number) => {
      console.log(`Attempting to revoke link for file ID: ${fileId}`);
      setIsRevoking(fileId);
@@ -194,7 +190,7 @@ export default function DashboardPage() {
    };
 
 
-  // --- Helper Functions (Unchanged) ---
+
   const formatDate = (dateInput: string | Date | null) => {
     if (!dateInput) return "Never"; // Display 'Never' if no expiry date
     const date = new Date(dateInput);
@@ -226,12 +222,7 @@ export default function DashboardPage() {
   // --- Render Component ---
   return (
     <div className="flex flex-col min-h-screen">
-      {/* ======================== Header (Assumes Shared Header Component) ======================== */}
-      {/* <Header /> */} {/* Render your shared header component here if used */}
-      {/* If Header is still separate, paste its JSX here */}
 
-
-      {/* ======================== Main Content ======================== */}
       <main className="flex-1 container py-12 px-4 md:px-6">
         {/* Page Title and Upload Button (Unchanged) */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
@@ -249,17 +240,13 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-             {/* --- MODIFIED TABS --- */}
+
             <Tabs defaultValue="sent" value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="mb-4 grid w-full grid-cols-2 h-auto">
                  <TabsTrigger value="sent" className="py-2 data-[state=active]:shadow-sm">Sent by Me</TabsTrigger>
                  <TabsTrigger value="received" className="py-2 data-[state=active]:shadow-sm">Received Files</TabsTrigger>
               </TabsList>
-             {/* --- END MODIFIED TABS --- */}
 
-              {/* ======================= */}
-              {/* === SENT FILES TAB === */}
-              {/* ======================= */}
               <TabsContent value="sent" className="mt-0">
                 {isSentLoading ? (
                    <div className="flex justify-center items-center py-20"> <Loader2 className="h-10 w-10 animate-spin text-primary" /> </div>
@@ -282,17 +269,17 @@ export default function DashboardPage() {
                          </TableHeader>
                          <TableBody>
                            {filteredSentFiles.map((file) => (
-                             <TableRow key={`sent-${file.id}`}> {/* Added prefix to key */}
+                             <TableRow key={`sent-${file.id}`}> 
                                <TableCell className="font-medium"> <div className="flex items-center gap-2"> <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" /> <span className="truncate max-w-[150px] md:max-w-[200px]" title={file.fileName}>{file.fileName}</span> </div> <span className="text-xs text-muted-foreground md:hidden block mt-1">{formatFileSizeSimple(file.size)}</span> </TableCell>
-                               {/* Cell for Recipient Email */}
+                               
                                <TableCell className="truncate max-w-[150px]" title={file.recipientEmail}>{file.recipientEmail}</TableCell>
-                               {/* Cell for Uploaded Date */}
+                               
                                <TableCell className="hidden md:table-cell"> <div className="flex items-center gap-1 text-sm text-muted-foreground"> <Clock className="h-3 w-3" /> {formatDate(file.createdAt)} </div> </TableCell>
-                               {/* Cell for Expiry Date */}
+                               
                                <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{formatDate(file.tokenExpiresAt)}</TableCell>
-                               {/* Cell for Status */}
+                               
                                <TableCell>{getStatusBadge(file.status)}</TableCell>
-                               {/* Cell for Actions (View/Revoke) */}
+                               
                                <TableCell className="text-right"><div className="flex justify-end gap-1 md:gap-2"> {file.status === "active" && file.downloadToken && ( <> <Link href={`/download/${file.downloadToken}`} target="_blank" title="Open Download Page"><Button variant="outline" size="sm" className="h-8 w-8 md:w-auto md:px-3"><ExternalLink className="h-3.5 w-3.5" /><span className="sr-only md:not-sr-only md:ml-2">View</span></Button></Link><Dialog><DialogTrigger asChild><Button variant="outline" size="sm" disabled={isRevoking === file.id} title="Revoke Link" className="h-8 w-8 md:w-auto md:px-3"> {isRevoking === file.id ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <XCircle className="h-3.5 w-3.5" />} <span className="sr-only md:not-sr-only md:ml-2">Revoke</span></Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>Revoke Download Link?</DialogTitle><DialogDescription> This action cannot be undone. </DialogDescription></DialogHeader><div className="py-4"><div className="flex items-center gap-2 mb-2"><FileText className="h-4 w-4 text-muted-foreground" /><span className="font-medium truncate">{file.fileName}</span></div><p className="text-sm text-muted-foreground">Shared with: {file.recipientEmail}</p></div><DialogFooter><DialogClose asChild><Button variant="outline"> Cancel </Button></DialogClose><Button variant="destructive" onClick={() => handleRevokeLink(file.id)} disabled={isRevoking === file.id}> {isRevoking === file.id ? 'Revoking...' : 'Revoke Link'} </Button></DialogFooter></DialogContent></Dialog></> )} {(file.status === 'expired' || file.status === 'revoked') && (<span className="text-xs text-muted-foreground italic px-3 hidden md:inline">Inactive</span>)} </div> </TableCell>
                              </TableRow>
                            ))}
@@ -306,9 +293,7 @@ export default function DashboardPage() {
                 )}
               </TabsContent>
 
-              {/* ========================== */}
-              {/* === RECEIVED FILES TAB === */}
-              {/* ========================== */}
+
               <TabsContent value="received" className="mt-0">
                 {isReceivedLoading ? (
                    <div className="flex justify-center items-center py-20"> <Loader2 className="h-10 w-10 animate-spin text-primary" /> </div>
@@ -331,20 +316,16 @@ export default function DashboardPage() {
                                </TableHeader>
                                <TableBody>
                                    {filteredReceivedFiles.map((file) => (
-                                       <TableRow key={`received-${file.id}`}> {/* Added prefix to key */}
-                                           {/* Cell for Filename/Size */}
+                                       <TableRow key={`received-${file.id}`}>
                                            <TableCell className="font-medium"> <div className="flex items-center gap-2"> <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" /> <span className="truncate max-w-[150px] md:max-w-[200px]" title={file.fileName}>{file.fileName}</span> </div> <span className="text-xs text-muted-foreground md:hidden block mt-1">{formatFileSizeSimple(file.size)}</span> </TableCell>
-                                           {/* Cell for Sender Info */}
+                                           
                                            <TableCell className="truncate max-w-[150px]" title={file.uploader?.email || 'Unknown Sender'}> { file.uploader?.email || 'Unknown Sender'} </TableCell>
-                                           {/* Cell for Received Date (using createdAt) */}
+                                           
                                            <TableCell className="hidden md:table-cell"> <div className="flex items-center gap-1 text-sm text-muted-foreground"> <Clock className="h-3 w-3" /> {formatDate(file.createdAt)} </div> </TableCell>
-                                           {/* Cell for Expiry Date */}
+                                           
                                            <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{formatDate(file.tokenExpiresAt)}</TableCell>
-                                           {/* Cell for Status */}
                                            <TableCell>{getStatusBadge(file.status)}</TableCell>
-                                           {/* Cell for Action (Download) */}
                                            <TableCell className="text-right">
-                                                {/* Action is just the View/Download link */}
                                                 {file.status === "active" && file.downloadToken && (
                                                     <Link href={`/download/${file.downloadToken}`} target="_blank" title="Open Download Page">
                                                        <Button variant="outline" size="sm" className="h-8 w-8 md:w-auto md:px-3"> <Download className="h-3.5 w-3.5" /> <span className="sr-only md:not-sr-only md:ml-2">Download</span> </Button>
@@ -367,7 +348,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </main>
-      {/* ======================== Footer ======================== */}
+
        <footer className="border-t py-6 md:py-0">
          <div className="container flex flex-col items-center justify-between gap-4 md:h-16 md:flex-row px-4 md:px-6"> <p className="text-sm text-muted-foreground"> © {new Date().getFullYear()} SecureShare. All rights reserved. </p> <nav className="flex gap-4 sm:gap-6"> <Link href="#" className="text-sm text-muted-foreground hover:text-primary hover:underline underline-offset-4"> Privacy Policy </Link> <Link href="#" className="text-sm text-muted-foreground hover:text-primary hover:underline underline-offset-4"> Terms of Service </Link> </nav> </div>
       </footer>

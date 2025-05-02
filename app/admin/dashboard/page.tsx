@@ -159,9 +159,6 @@ export default function AdminDashboardPage() {
 
       try {
           const userId = editingUser.id;
-          // ============================================================
-          // ✅ Implemented API Call: PATCH /api/admin/users/[userId]
-          // ============================================================
           const res = await fetch(`/api/admin/users/${userId}`, {
                method: 'PATCH',
                headers: { 'Content-Type': 'application/json' },
@@ -206,9 +203,6 @@ export default function AdminDashboardPage() {
 
       try {
           const userId = userToDelete.id;
-          // ============================================================
-          // ✅ Implemented API Call: DELETE /api/admin/users/[userId]
-          // ============================================================
            const res = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
 
            // Check status for success (200 or 204 No Content)
@@ -241,9 +235,6 @@ export default function AdminDashboardPage() {
         setError(null);
         const newStatus = currentStatus === "active" ? "suspended" : "active";
 
-        // ============================================================
-        // ✅ Implement API Call: PATCH /api/admin/users/[userId]/status
-        // ============================================================
         try {
             const res = await fetch(`/api/admin/users/${userId}/status`, {
                 method: 'PATCH',

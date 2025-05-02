@@ -44,7 +44,7 @@ export default function RegisterPage() {
     setErrorMessage(null);
   };
 
-  // ✅ Handle form submission
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -129,10 +129,7 @@ export default function RegisterPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Header */}
-      
 
-      {/* Main Content */}
       <main className="flex-1 flex items-center justify-center p-4 md:p-6">
         <Card className="w-full max-w-md">
           <CardHeader>
