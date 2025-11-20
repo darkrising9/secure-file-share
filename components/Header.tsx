@@ -1,10 +1,10 @@
 // File Path: components/layout/Header.tsx
 
-"use client"; // This component needs client-side hooks (useUser, useRouter)
+"use client";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useUser } from "@/context/UserContext"; // Import the context hook
+import { useUser } from "@/context/UserContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LogOut, LayoutDashboard, User as UserIcon, Loader2, Shield, Upload } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle"; // <-- 1. IMPORT THEME TOGGLE
 
 // Helper function for Avatar initials (using firstName)
 const getInitials = (firstName?: string | null, email?: string): string => {
@@ -32,9 +33,8 @@ const getInitials = (firstName?: string | null, email?: string): string => {
     return "??";
 };
 
-
 export function Header() {
-  const { user, isLoading, refetchUser } = useUser(); // Get user state from context
+  const { user, isLoading, refetchUser } = useUser();
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -43,19 +43,15 @@ export function Header() {
         const res = await fetch("/api/logout", { method: "GET" });
         if (res.ok) {
             console.log("Logout API successful, refetching user context...");
-            // --- VVV Call refetchUser on Success VVV ---
-            await refetchUser(); // Call the function from context
+            await refetchUser();
             console.log("User context refetched after logout.");
-            // --- ^^^ Call refetchUser on Success ^^^ ---
         } else {
              console.error("Logout API call failed:", res.status);
-             // Optional: Show error toast
         }
     } catch (error) {
       console.error("Error calling logout API:", error);
-      // Optional: Show error toast
     } finally {
-      router.push("/"); // Redirect after attempting logout and refetch
+      router.push("/");
     }
   };
 
@@ -70,12 +66,30 @@ export function Header() {
 
         {/* Navigation & Profile Section (Right Side) */}
         <div className="flex items-center gap-4 sm:gap-6">
-          {/* --- VVV Added Logged-in Nav Links VVV --- */}
+          {/* --- VVV 2. ADDED LOGGED-IN NAV LINKS VVV --- */}
           {/* Show Upload/Dashboard links in main nav only if user is logged in */}
-           {/* --- ^^^ Added Logged-in Nav Links ^^^ --- */}
+          {user && (
+            <>
+                <Link href="/upload" className="text-sm font-medium text-muted-foreground hover:text-primary">
+                    Upload
+                </Link>
+                <Link href={user.role === 'admin' ? '/admin/dashboard' : '/dashboard'} className="text-sm font-medium text-muted-foreground hover:text-primary">
+                    Dashboard
+                </Link>
+            </>
+           )}
+           {/* --- ^^^ ADDED LOGGED-IN NAV LINKS ^^^ --- */}
 
           {/* Profile / Auth Area */}
-          <div className="flex items-center">
+          <div className="flex items-center gap-2"> {/* Grouped profile/theme/auth buttons */}
+
+            {/* --- VVV 3. PLACED THEME TOGGLE HERE VVV --- */}
+            <ThemeToggle />
+            {/* --- ^^^ PLACED THEME TOGGLE HERE ^^^ --- */}
+
+            {/* Spacer only needed if user is logged in or loading */}
+            {(user || isLoading) && <div className="w-px h-6 bg-border"></div>}
+
             {isLoading ? (
                // Loading State Placeholder
                <div className="flex items-center justify-center h-9 w-9"> <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> </div>
@@ -90,44 +104,23 @@ export function Header() {
                        </Button>
                    </DropdownMenuTrigger>
                    <DropdownMenuContent className="w-56" align="end" forceMount>
-                       <DropdownMenuLabel className="font-normal">
-                            <div className="flex flex-col space-y-1">
-                               <p className="text-sm font-medium leading-none truncate" title={user.firstName || user.email}> {user.firstName || user.email} </p>
-                               <p className="text-xs leading-none text-muted-foreground truncate" title={user.email}> {user.email} </p>
-                               {user.role && ( <p className="text-xs leading-none text-muted-foreground capitalize pt-1"> Role: {user.role} </p> )}
-                           </div>
-                       </DropdownMenuLabel>
+                       <DropdownMenuLabel className="font-normal"> <div className="flex flex-col space-y-1"> <p className="text-sm font-medium leading-none truncate" title={user.firstName || user.email}> {user.firstName || user.email} </p> <p className="text-xs leading-none text-muted-foreground truncate" title={user.email}> {user.email} </p> {user.role && ( <p className="text-xs leading-none text-muted-foreground capitalize pt-1"> Role: {user.role} </p> )} </div> </DropdownMenuLabel>
                        <DropdownMenuSeparator />
 
-                       {/* --- VVV Conditional Dashboard Link based on Role VVV --- */}
+                       {/* Conditional Dashboard Link based on Role */}
                        {user?.role === 'admin' ? (
-                         // Link for Admins
                          <DropdownMenuItem asChild className="cursor-pointer">
-                           <Link href="/admin/dashboard"> {/* Points to Admin path */}
-                             <LayoutDashboard className="mr-2 h-4 w-4" />
-                             <span>Admin Dashboard</span> {/* Specific text */}
-                           </Link>
+                           <Link href="/admin/dashboard"> <LayoutDashboard className="mr-2 h-4 w-4" /> <span>Admin Dashboard</span> </Link>
                          </DropdownMenuItem>
                        ) : (
-                         // Link for non-Admins (Teachers, Students, etc.)
                          <DropdownMenuItem asChild className="cursor-pointer">
-                           <Link href="/dashboard"> {/* Points to regular path */}
-                             <LayoutDashboard className="mr-2 h-4 w-4" />
-                             <span>Dashboard</span> {/* Generic text */}
-                           </Link>
+                           <Link href="/dashboard"> <LayoutDashboard className="mr-2 h-4 w-4" /> <span>Dashboard</span> </Link>
                          </DropdownMenuItem>
                        )}
-                       {/* --- ^^^ Conditional Dashboard Link based on Role ^^^ --- */}
 
-                       <DropdownMenuItem disabled> {/* Settings Link */}
-                         <UserIcon className="mr-2 h-4 w-4" />
-                         <span>Settings</span>
-                       </DropdownMenuItem>
+                       <DropdownMenuItem disabled> <UserIcon className="mr-2 h-4 w-4" /> <span>Settings</span> </DropdownMenuItem>
                        <DropdownMenuSeparator />
-                       <DropdownMenuItem onSelect={handleLogout} className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer">
-                           <LogOut className="mr-2 h-4 w-4" />
-                           <span>Log out</span>
-                       </DropdownMenuItem>
+                       <DropdownMenuItem onSelect={handleLogout} className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"><LogOut className="mr-2 h-4 w-4" /><span>Log out</span></DropdownMenuItem>
                    </DropdownMenuContent>
                </DropdownMenu>
             ) : (

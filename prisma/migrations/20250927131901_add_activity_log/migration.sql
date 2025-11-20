@@ -1,0 +1,13 @@
+-- CreateEnum
+CREATE TYPE "public"."ActionType" AS ENUM ('USER_REGISTER', 'USER_LOGIN_SUCCESS', 'USER_LOGIN_FAIL', 'USER_LOGOUT', 'FILE_UPLOAD', 'FILE_DOWNLOAD', 'FILE_REVOKE', 'ADMIN_USER_EDIT', 'ADMIN_USER_DELETE', 'ADMIN_USER_STATUS_CHANGE', 'ADMIN_SHARE_REVOKE');
+
+-- CreateTable
+CREATE TABLE "public"."ActivityLog" (
+    "id" SERIAL NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "actorEmail" TEXT NOT NULL,
+    "action" "public"."ActionType" NOT NULL,
+    "details" TEXT,
+
+    CONSTRAINT "ActivityLog_pkey" PRIMARY KEY ("id")
+);

@@ -1,172 +1,177 @@
 // File Path: app/api/admin/users/[userId]/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient, Prisma } from '@prisma/client';
-import { getCurrentUser } from '@/lib/auth-utils'; // Adjust path if needed
+import { PrismaClient, Prisma, ActionType } from '@prisma/client';
+import { getCurrentUser } from '@/lib/auth-utils';
+import { logActivity } from '@/lib/logger';
+import { getClientIpFromHeaders } from '@/lib/request-ip';
+import fs from 'fs'; // Import fs for file deletion
+import path from 'path'; // Keep if needed
 
 const prisma = new PrismaClient();
 
-// Define expected structure of the request body for updates
-interface UpdateUserData {
-    name?: string;      // Or firstName - Make optional
-    role?: string;      // Make optional
-    status?: string;    // Make optional (only if status field exists)
-    // Add other editable fields here, ensure they are optional
+// Define structure for route params used by handlers
+interface RouteParams {
+    params: { userId: string };
 }
 
-// Handles PATCH requests to update user details
-export async function PATCH(request: NextRequest, { params }: { params: { userId: string } }) {
-    const userIdParam = params.userId;
+// Define expected structure of the request body for updates
+interface UpdateUserData {
+    firstName?: string; // Corrected to firstName to match schema
+    role?: string;
+    status?: string;
+}
+
+// --- PATCH Handler (Update User) ---
+export async function PATCH(request: NextRequest, { params: { userId: userIdParam } }: RouteParams) {
     console.log(`PATCH /api/admin/users/${userIdParam} request received`);
 
+    let userId: string | number; // Use number if your User ID is Int
     try {
-        // 1. Authenticate and Authorize Admin
+        // --- Adjust based on your User 'id' type ---
+        userId = userIdParam; // Assuming String ID
+        if (typeof userId !== 'string' || userId.length === 0) { throw new Error("Invalid User ID format."); }
+        // userId = parseInt(userIdParam, 10); // Use if Int ID
+        // if (isNaN(userId)) { throw new Error("Invalid User ID format."); }
+    } catch (formatError: any) {
+        return NextResponse.json({ success: false, error: formatError.message }, { status: 400 });
+    }
+
+    try {
         const currentUser = await getCurrentUser(request);
-        if (!currentUser) {
-            return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-        }
-        if (currentUser.role !== 'admin') {
-            return NextResponse.json({ success: false, error: "Access Denied: Administrator privileges required." }, { status: 403 });
-        }
+        if (!currentUser) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+        if (currentUser.role !== 'admin') return NextResponse.json({ success: false, error: "Administrator privileges required." }, { status: 403 });
         console.log(`Admin action requested by: ${currentUser.email}`);
 
-        // 2. Validate and Convert userId Parameter
-        //    ADJUST 'number' or 'string' based on your User model ID type
-        let userId: string | number;
-        // --- Option A: If your User ID is String (CUID/UUID) ---
-        userId = userIdParam;
-        if (typeof userId !== 'string' || userId.length === 0) {
-             throw new Error("Invalid User ID format."); // Caught by catch block
-        }
-
-        // 3. Parse and Validate Request Body
         const body = await request.json() as UpdateUserData;
-        const { name, role, status } = body; // Destructure expected fields
+        const { firstName, role, status } = body;
 
-        const updateData: Prisma.UserUpdateInput = {}; // Use Prisma type for update data
+        const updateData: Prisma.UserUpdateInput = {};
 
-        // Only add fields to updateData if they were provided in the request body
-        if (typeof name === 'string') {
-            updateData.firstName = name; // Use 'firstName' if that's your schema field
+        if (typeof firstName === 'string') {
+            updateData.firstName = firstName; // Use 'firstName' to match schema
         }
         if (typeof role === 'string') {
-            // Optional: Add validation for allowed roles
             const allowedRoles = ['admin', 'teacher', 'student'];
             if (!allowedRoles.includes(role.toLowerCase())) {
                 return NextResponse.json({ success: false, error: `Invalid role specified: ${role}` }, { status: 400 });
             }
-            // Prevent admin from removing the last admin's role? Add check if needed.
-            updateData.role = role.toLowerCase(); // Store roles consistently (e.g., lowercase)
+            updateData.role = role.toLowerCase();
         }
-        // Uncomment if status field exists in your User model
-        
         if (typeof status === 'string') {
             const allowedStatuses = ['active', 'suspended'];
             if (!allowedStatuses.includes(status.toLowerCase())) {
                 return NextResponse.json({ success: false, error: `Invalid status specified: ${status}` }, { status: 400 });
             }
-            // Prevent admin from suspending themselves?
             if (currentUser.id === userId && status.toLowerCase() === 'suspended') {
                  return NextResponse.json({ success: false, error: "Cannot suspend own account." }, { status: 400 });
             }
             updateData.status = status.toLowerCase();
         }
-        
 
         if (Object.keys(updateData).length === 0) {
              return NextResponse.json({ success: false, error: "No valid fields provided for update." }, { status: 400 });
         }
 
-        // 4. Update User in Database
         const updatedUser = await prisma.user.update({
             where: { id: userId },
             data: updateData,
-            select: { id: true, email: true, firstName: true, role: true, status: true, createdAt: true, _count: { select: {filesUploaded: true, filesReceived: true}} } // Return updated summary data
+            select: { id: true, email: true, firstName: true, lastName: true, role: true, status: true, createdAt: true, _count: { select: {filesUploaded: true, filesReceived: true}} }
         });
 
-        console.log(`User ${userId} updated successfully by admin ${currentUser.email}`);
+        // --- Logging the admin edit action ---
+        const ip = getClientIpFromHeaders(request.headers as any);
+        await logActivity(currentUser.email, ActionType.ADMIN_USER_EDIT, `Updated details for user: ${updatedUser.email} (ID: ${userId})`, ip);
 
-        // 5. Return Success Response with updated user summary data
+        console.log(`User ${userId} updated successfully by admin ${currentUser.email}`);
         return NextResponse.json({ success: true, updatedUser }, { status: 200 });
 
     } catch (error: any) {
-        console.error(`Error updating user ${params.userId}:`, error);
-
+        console.error(`Error updating user ${userIdParam}:`, error); // Use userIdParam for logging consistency
+        // ... (rest of error handling)
         let statusCode = 500;
-        let message = "Failed to update user due to a server error.";
-
-        if (error instanceof Prisma.PrismaClientKnownRequestError) {
-            if (error.code === 'P2025') { // Record to update not found
-                 message = "User not found."; statusCode = 404;
-            } else { message = "Database error during update."; }
-        } else if (error.message.includes("Invalid User ID format")) {
-            statusCode = 400; message = error.message;
-        } else if (error instanceof SyntaxError) { // JSON parsing error
-            statusCode = 400; message = "Invalid request body.";
+        let message = "Failed to update user.";
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+            message = "User not found."; statusCode = 404;
         }
-
         return NextResponse.json({ success: false, error: message }, { status: statusCode });
     }
 }
 
-// Add this function to app/api/admin/users/[userId]/route.ts
-
-export async function DELETE(request: NextRequest, { params }: { params: { userId: string } }) {
-    const userIdParam = params.userId;
+// --- DELETE Handler (Delete User) ---
+export async function DELETE(request: NextRequest, { params: { userId: userIdParam } }: RouteParams) {
     console.log(`DELETE /api/admin/users/${userIdParam} request received`);
+    let physicalFilePathsToDelete: string[] = [];
+
+    let userId: string | number; // Use number if your User ID is Int
+    try {
+        // --- Adjust based on your User 'id' type ---
+        userId = userIdParam; // Assuming String ID
+        if (typeof userId !== 'string' || userId.length === 0) { throw new Error("Invalid User ID format."); }
+        // userId = parseInt(userIdParam, 10); // Use if Int ID
+        // if (isNaN(userId)) { throw new Error("Invalid User ID format."); }
+    } catch (formatError: any) {
+        return NextResponse.json({ success: false, error: formatError.message }, { status: 400 });
+    }
 
      try {
-        // 1. Authenticate and Authorize Admin
         const currentUser = await getCurrentUser(request);
         if (!currentUser) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
         if (currentUser.role !== 'admin') return NextResponse.json({ success: false, error: "Administrator privileges required." }, { status: 403 });
         console.log(`Admin delete request by: ${currentUser.email}`);
 
-        // 2. Validate and Convert userId Parameter (Match type to your schema)
-        let userId: string | number;
-        // --- If User ID is String ---
-        userId = userIdParam;
-        if (typeof userId !== 'string' || userId.length === 0) { throw new Error("Invalid User ID format."); }
-        // --- If User ID is Int ---
-        // userId = parseInt(userIdParam, 10);
-        // if (isNaN(userId)) { throw new Error("Invalid User ID format. Must be a number."); }
-
-        // 3. Prevent Self-Deletion
         if (currentUser.id === userId) {
             return NextResponse.json({ success: false, error: "Administrators cannot delete their own account." }, { status: 400 });
         }
 
-        // 4. Delete User
-        // WARNING: This deletes the user record. It does NOT automatically handle
-        // files uploaded by this user. Depending on your schema's foreign key constraints
-        // (e.g., ON DELETE SET NULL/CASCADE on File.uploaderId), this might fail or
-        // leave orphaned files/records. Implement proper cascading logic or file cleanup if needed.
-        console.warn(`Attempting to delete user ${userId}. Ensure related file handling is considered!`);
+        // Find user and their files before starting deletion transaction
+        const userToDelete = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+        if (!userToDelete) { return NextResponse.json({ success: false, error: "User not found." }, { status: 404 }); }
 
-        await prisma.user.delete({
-            where: { id: userId },
+        const filesToDelete = await prisma.file.findMany({ where: { uploaderId: userId }, select: { filePath: true } });
+        physicalFilePathsToDelete = filesToDelete.map(f => f.filePath);
+
+        console.warn(`Attempting to delete user ${userToDelete.email} and their ${physicalFilePathsToDelete.length} uploaded files.`);
+
+        // Perform DB deletions in a transaction
+        await prisma.$transaction(async (tx) => {
+            await tx.file.deleteMany({ where: { uploaderId: userId } });
+            await tx.user.delete({ where: { id: userId } });
         });
 
-        console.log(`User ${userId} deleted successfully by admin ${currentUser.email}`);
+        // --- VVV ADD ADMIN DELETE LOG VVV ---
+        const ip = getClientIpFromHeaders(request.headers as any);
+        await logActivity(currentUser.email, ActionType.ADMIN_USER_DELETE, `Deleted user: ${userToDelete.email} (ID: ${userId})`, ip);
+        // --- ^^^ ---
 
-        // 5. Return Success Response
-        // return new NextResponse(null, { status: 204 }); // 204 No Content is also common for DELETE
-        return NextResponse.json({ success: true, message: "User deleted successfully." }, { status: 200 });
+        console.log(`Database records for user ${userId} deleted successfully.`);
 
+        // Delete physical files after successful DB transaction
+        let deletionErrors = 0;
+        for (const filePath of physicalFilePathsToDelete) {
+            try {
+                await fs.promises.unlink(filePath);
+            } catch (fileError: any) {
+                if (fileError.code !== 'ENOENT') { // Don't log error if file was already missing
+                    console.error(`Error deleting physical file ${filePath}:`, fileError);
+                    deletionErrors++;
+                }
+            }
+        }
+        console.log("Physical file cleanup finished.");
+
+        return NextResponse.json({ success: true, message: `User and ${physicalFilePathsToDelete.length} file records deleted successfully.` + (deletionErrors > 0 ? " Some physical files may require manual cleanup." : "") }, { status: 200 });
 
      } catch (error: any) {
-         console.error(`Error deleting user ${params.userId}:`, error);
+         const idForLog = typeof userId !== 'undefined' ? userId : userIdParam;
+         console.error(`Error deleting user ${idForLog}:`, error);
 
          let statusCode = 500;
          let message = "Failed to delete user due to a server error.";
-
          if (error instanceof Prisma.PrismaClientKnownRequestError) {
-             if (error.code === 'P2025') { // Record to delete not found
-                  message = "User not found."; statusCode = 404;
-             } else if (error.code === 'P2003') { // Foreign key constraint failed
-                  console.error("Foreign key constraint failed. User might still have related records (e.g., files).");
-                  message = "Cannot delete user, they may still have associated data."; statusCode = 409; // Conflict
-             } else { message = "Database error during deletion."; }
+             if (error.code === 'P2025') { message = "User not found during deletion."; statusCode = 404; }
+             else if (error.code === 'P2003') { message = "Cannot delete user, they may still have associated data (foreign key constraint)."; statusCode = 409; }
+             else { message = "Database error during deletion."; }
          } else if (error.message.includes("Invalid User ID format")) {
             statusCode = 400; message = error.message;
          }

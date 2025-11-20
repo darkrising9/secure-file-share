@@ -23,6 +23,11 @@ interface ReceivedFileData {
     downloadToken: string | null;
     status: 'active' | 'expired' | 'revoked';
     uploader: UploaderInfo | null; // Who sent it
+    // Scan information
+    scanStatus: string;
+    scanResult: string | null;
+    scannedAt: Date | null;
+    scanEngine: string | null;
 }
 
 export async function GET(request: NextRequest) {
@@ -48,6 +53,11 @@ export async function GET(request: NextRequest) {
                 createdAt: true,
                 tokenExpiresAt: true,
                 downloadToken: true,
+                // Scan information
+                scanStatus: true,
+                scanResult: true,
+                scannedAt: true,
+                scanEngine: true,
                 uploader: { // Use include/select to get sender details
                     select: {
                         id: true,
@@ -85,6 +95,11 @@ export async function GET(request: NextRequest) {
                 downloadToken: file.downloadToken,
                 status: status,
                 uploader: uploaderInfo,
+                // Scan information
+                scanStatus: file.scanStatus,
+                scanResult: file.scanResult,
+                scannedAt: file.scannedAt,
+                scanEngine: file.scanEngine,
             };
         });
 

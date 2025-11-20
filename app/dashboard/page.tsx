@@ -6,7 +6,7 @@ import * as React from "react";
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Shield, Upload, FileText, ExternalLink, XCircle, Clock, Search, Loader2, AlertCircle, Download } from "lucide-react"; // Added Download icon
+import { Shield, Upload, FileText, ExternalLink, XCircle, Clock, Search, Loader2, AlertCircle, Download, CheckCircle2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -38,6 +38,11 @@ interface SentFileData {
     tokenExpiresAt: string | Date | null;
     downloadToken: string | null;
     status: 'active' | 'expired' | 'revoked';
+    // Scan information
+    scanStatus: string;
+    scanResult: string | null;
+    scannedAt: string | Date | null;
+    scanEngine: string | null;
 }
 
 // For nested uploader data returned by /api/files/received
@@ -57,6 +62,11 @@ interface ReceivedFileData {
     downloadToken: string | null;
     status: 'active' | 'expired' | 'revoked';
     uploader: UploaderInfo | null; // Who sent it
+    // Scan information
+    scanStatus: string;
+    scanResult: string | null;
+    scannedAt: string | Date | null;
+    scanEngine: string | null;
 }
 // --- ---
 
@@ -219,6 +229,46 @@ export default function DashboardPage() {
     } 
   }
 
+  const getScanStatusBadge = (scanStatus: string, scanEngine?: string | null) => {
+    switch (scanStatus) {
+      case "CLEAN": 
+        return (
+          <div className="flex items-center gap-1" title={`Scanned by ${scanEngine || 'Security Scanner'} - Clean`}>
+            <CheckCircle2 className="h-3 w-3 text-green-600" />
+            <span className="text-xs text-green-700 font-medium">Clean</span>
+          </div>
+        );
+      case "THREAT_DETECTED": 
+        return (
+          <div className="flex items-center gap-1" title={`Security threat detected by ${scanEngine || 'Security Scanner'}`}>
+            <AlertTriangle className="h-3 w-3 text-red-600" />
+            <span className="text-xs text-red-700 font-medium">Threat</span>
+          </div>
+        );
+      case "ERROR": 
+        return (
+          <div className="flex items-center gap-1" title={`Scan error - ${scanEngine || 'Security Scanner'}`}>
+            <AlertCircle className="h-3 w-3 text-yellow-600" />
+            <span className="text-xs text-yellow-700 font-medium">Error</span>
+          </div>
+        );
+      case "PENDING": 
+        return (
+          <div className="flex items-center gap-1" title="Scan in progress">
+            <Loader2 className="h-3 w-3 text-blue-600 animate-spin" />
+            <span className="text-xs text-blue-700 font-medium">Scanning</span>
+          </div>
+        );
+      default: 
+        return (
+          <div className="flex items-center gap-1" title="Scan status unknown">
+            <AlertCircle className="h-3 w-3 text-gray-400" />
+            <span className="text-xs text-gray-500">Unknown</span>
+          </div>
+        );
+    }
+  }
+
   // --- Render Component ---
   return (
     <div className="flex flex-col min-h-screen">
@@ -263,6 +313,7 @@ export default function DashboardPage() {
                               <TableHead>Recipient</TableHead>
                               <TableHead className="hidden md:table-cell">Uploaded</TableHead>
                               <TableHead className="hidden md:table-cell">Expires</TableHead>
+                              <TableHead className="hidden lg:table-cell">Security</TableHead>
                               <TableHead>Status</TableHead>
                               <TableHead className="text-right">Actions</TableHead>
                            </TableRow>
@@ -278,7 +329,14 @@ export default function DashboardPage() {
                                
                                <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{formatDate(file.tokenExpiresAt)}</TableCell>
                                
-                               <TableCell>{getStatusBadge(file.status)}</TableCell>
+                               <TableCell className="hidden lg:table-cell">{getScanStatusBadge(file.scanStatus, file.scanEngine)}</TableCell>
+                               
+                               <TableCell>
+                                 <div className="flex flex-col gap-1">
+                                   {getStatusBadge(file.status)}
+                                   <div className="lg:hidden">{getScanStatusBadge(file.scanStatus, file.scanEngine)}</div>
+                                 </div>
+                               </TableCell>
                                
                                <TableCell className="text-right"><div className="flex justify-end gap-1 md:gap-2"> {file.status === "active" && file.downloadToken && ( <> <Link href={`/download/${file.downloadToken}`} target="_blank" title="Open Download Page"><Button variant="outline" size="sm" className="h-8 w-8 md:w-auto md:px-3"><ExternalLink className="h-3.5 w-3.5" /><span className="sr-only md:not-sr-only md:ml-2">View</span></Button></Link><Dialog><DialogTrigger asChild><Button variant="outline" size="sm" disabled={isRevoking === file.id} title="Revoke Link" className="h-8 w-8 md:w-auto md:px-3"> {isRevoking === file.id ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <XCircle className="h-3.5 w-3.5" />} <span className="sr-only md:not-sr-only md:ml-2">Revoke</span></Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>Revoke Download Link?</DialogTitle><DialogDescription> This action cannot be undone. </DialogDescription></DialogHeader><div className="py-4"><div className="flex items-center gap-2 mb-2"><FileText className="h-4 w-4 text-muted-foreground" /><span className="font-medium truncate">{file.fileName}</span></div><p className="text-sm text-muted-foreground">Shared with: {file.recipientEmail}</p></div><DialogFooter><DialogClose asChild><Button variant="outline"> Cancel </Button></DialogClose><Button variant="destructive" onClick={() => handleRevokeLink(file.id)} disabled={isRevoking === file.id}> {isRevoking === file.id ? 'Revoking...' : 'Revoke Link'} </Button></DialogFooter></DialogContent></Dialog></> )} {(file.status === 'expired' || file.status === 'revoked') && (<span className="text-xs text-muted-foreground italic px-3 hidden md:inline">Inactive</span>)} </div> </TableCell>
                              </TableRow>
@@ -310,6 +368,7 @@ export default function DashboardPage() {
                                        <TableHead>Sender</TableHead> {/* Changed */}
                                        <TableHead className="hidden md:table-cell">Shared On</TableHead> {/* Changed */}
                                        <TableHead className="hidden md:table-cell">Expires</TableHead>
+                                       <TableHead className="hidden lg:table-cell">Security</TableHead>
                                        <TableHead>Status</TableHead>
                                        <TableHead className="text-right">Action</TableHead> {/* Only Download */}
                                    </TableRow>
@@ -324,7 +383,15 @@ export default function DashboardPage() {
                                            <TableCell className="hidden md:table-cell"> <div className="flex items-center gap-1 text-sm text-muted-foreground"> <Clock className="h-3 w-3" /> {formatDate(file.createdAt)} </div> </TableCell>
                                            
                                            <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{formatDate(file.tokenExpiresAt)}</TableCell>
-                                           <TableCell>{getStatusBadge(file.status)}</TableCell>
+                                           
+                                           <TableCell className="hidden lg:table-cell">{getScanStatusBadge(file.scanStatus, file.scanEngine)}</TableCell>
+                                           
+                                           <TableCell>
+                                             <div className="flex flex-col gap-1">
+                                               {getStatusBadge(file.status)}
+                                               <div className="lg:hidden">{getScanStatusBadge(file.scanStatus, file.scanEngine)}</div>
+                                             </div>
+                                           </TableCell>
                                            <TableCell className="text-right">
                                                 {file.status === "active" && file.downloadToken && (
                                                     <Link href={`/download/${file.downloadToken}`} target="_blank" title="Open Download Page">

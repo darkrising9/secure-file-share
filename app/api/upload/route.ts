@@ -9,6 +9,10 @@ import { pipeline } from 'stream/promises'; //node module for piping streams tog
 import nodemailer from 'nodemailer';
 import { Readable } from 'stream'; //node module to create a stream from file buffer
 import { getCurrentUser } from '@/lib/auth-utils'; 
+import { logActivity } from '@/lib/logger';
+import { ActionType, ScanStatus } from '@prisma/client';
+import { scanFile } from '@/lib/fileScanner';
+import { getClientIpFromHeaders } from '@/lib/request-ip';
 
 // Configuration for Encrypted Upload 
 const prisma = new PrismaClient();
@@ -78,15 +82,57 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ success: false, error: `File size exceeds the ${MAX_FILE_SIZE_BYTES / 1024 / 1024}MB limit.` }, { status: 413 });
         }
 
+        // Save file temporarily for scanning
+        const tempFileName = `temp_${crypto.randomUUID()}_${originalFilename}`;
+        const tempFilePath = path.join(UPLOAD_DIR, tempFileName);
+        
+        // Write file to temp location for scanning
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        await fs.promises.writeFile(tempFilePath, buffer);
+        
+        console.log(`File saved temporarily for scanning: ${tempFileName}`);
+        
+        // Scan the file for threats
+        console.log(`Starting virus scan for file: ${originalFilename}`);
+        const scanResult = await scanFile(tempFilePath);
+        console.log(`Scan completed:`, scanResult);
+        
+        // Handle scan results
+        if (scanResult.status === 'THREAT_DETECTED') {
+            // Delete the temporary file
+            try {
+                await fs.promises.unlink(tempFilePath);
+            } catch (e) {
+                console.error('Error deleting infected temp file:', e);
+            }
+            
+            // Log the threat detection
+            const ip = getClientIpFromHeaders(req.headers as any);
+            await logActivity(uploader.email, ActionType.FILE_SCAN_THREAT_DETECTED, 
+                `Threat detected in file '${originalFilename}': ${scanResult.threatName || 'Unknown threat'}`,
+                ip);
+            
+            return NextResponse.json({ 
+                success: false, 
+                error: `File upload blocked: Security threat detected (${scanResult.threatName || 'Unknown threat'})`,
+                scanResult: {
+                    status: scanResult.status,
+                    engine: scanResult.engine,
+                    threatName: scanResult.threatName,
+                    details: scanResult.details
+                }
+            }, { status: 400 });
+        }
+
+        // File passed scan - proceed with encryption
         // Prepare for Encryption & Local Storage
         const iv = crypto.randomBytes(12);
         const cipher = crypto.createCipheriv(ALGORITHM, secretKey, iv);
         const encryptedFileName = `${crypto.randomUUID()}.enc`;
         encryptedFilePath = path.join(UPLOAD_DIR, encryptedFileName);
 
-        // Read File into Buffer using .arrayBuffer() and Create Node Stream
-        const arrayBuffer = await file.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
+        // Use the already-read buffer for encryption
         const nodeStream = Readable.from(buffer);
         const output = fs.createWriteStream(encryptedFilePath);
 
@@ -94,13 +140,21 @@ export async function POST(req: NextRequest) {
         await pipeline(nodeStream, cipher, output);
         const authTag = cipher.getAuthTag();
         console.log("Encryption pipeline finished.");
+        
+        // Clean up temp file after successful encryption
+        try {
+            await fs.promises.unlink(tempFilePath);
+            console.log(`Temporary file cleaned up: ${tempFileName}`);
+        } catch (e) {
+            console.error('Error deleting temp file:', e);
+        }
 
         // Generate Secure Download Token
         const downloadToken = crypto.randomBytes(32).toString('hex');
         const tokenExpiryHours = 24;
         const tokenExpiresAt = new Date(Date.now() + tokenExpiryHours * 60 * 60 * 1000);
 
-        // Store Metadata in Database
+        // Store Metadata in Database including scan results
         const savedFile = await prisma.file.create({
             data: {
                 fileName: originalFilename, 
@@ -114,10 +168,27 @@ export async function POST(req: NextRequest) {
                 authTag: authTag.toString("hex"),
                 downloadToken: downloadToken, 
                 tokenExpiresAt: tokenExpiresAt,
+                // Scan result fields
+                scanStatus: scanResult.status === 'CLEAN' ? ScanStatus.CLEAN : 
+                           scanResult.status === 'ERROR' ? ScanStatus.ERROR : ScanStatus.PENDING,
+                scanResult: scanResult.details,
+                scannedAt: new Date(),
+                scanEngine: scanResult.engine,
             },
             select: { id: true }
         });
         console.log(`File metadata saved DB ID ${savedFile.id}`);
+
+        // Log file upload and scan activities (non-blocking)
+        try {
+            const ip = getClientIpFromHeaders(req.headers as any);
+            await logActivity(uploader.email, ActionType.FILE_UPLOAD, `Uploaded file: '${originalFilename}' (ID: ${savedFile.id}) to ${recipientEmail}`,
+                ip);
+            await logActivity(uploader.email, ActionType.FILE_SCAN_CLEAN, `File '${originalFilename}' scanned clean by ${scanResult.engine}`,
+                ip);
+        } catch (e) {
+            // Swallow logging errors to avoid impacting user flow
+        }
 
         // Generating Full Download URL (Pointing to the PAGE route)
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
@@ -140,14 +211,36 @@ export async function POST(req: NextRequest) {
         // Return Success Response - For logging purposes
         return NextResponse.json({
             success: true,
-            message: "File uploaded, encrypted, and download page link sent to registered recipient.",
+            message: "File scanned, uploaded, encrypted, and download page link sent to registered recipient.",
             fileId: savedFile.id,
-            downloadUrl: downloadUrl 
+            downloadUrl: downloadUrl,
+            scanResult: {
+                status: scanResult.status,
+                engine: scanResult.engine,
+                details: scanResult.details
+            }
         });
 
     } catch (error: any) {
         console.error("Upload Error:", error);
-        if (encryptedFilePath) { try { await fs.promises.unlink(encryptedFilePath); } catch (e) { console.error("Error cleaning encrypted file:", e); } }
+        
+        // Clean up any temporary files
+        if (encryptedFilePath) { 
+            try { await fs.promises.unlink(encryptedFilePath); } catch (e) { console.error("Error cleaning encrypted file:", e); } 
+        }
+        
+        // Clean up temp scan file if it exists
+        try {
+            const tempFiles = await fs.promises.readdir(UPLOAD_DIR);
+            for (const file of tempFiles) {
+                if (file.startsWith('temp_')) {
+                    await fs.promises.unlink(path.join(UPLOAD_DIR, file));
+                }
+            }
+        } catch (e) {
+            console.error("Error cleaning temp files:", e);
+        }
+        
         let statusCode = 500;
          if (error.message?.includes("Authentication required")) statusCode = 401;
          else if (error.message?.includes("Recipient email does not belong")) statusCode = 404;
