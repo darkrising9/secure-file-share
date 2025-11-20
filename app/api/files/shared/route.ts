@@ -17,6 +17,11 @@ interface SharedFileData {
     tokenExpiresAt: Date | null; // Expiry date for the token
     downloadToken: string | null; // The token itself (needed for view link)
     status: 'active' | 'expired' | 'revoked'; // Calculated status
+    // Scan information
+    scanStatus: string; // PENDING, CLEAN, THREAT_DETECTED, ERROR
+    scanResult: string | null; // Detailed scan results
+    scannedAt: Date | null;
+    scanEngine: string | null;
 }
 
 export async function GET(request: NextRequest) {
@@ -51,6 +56,11 @@ export async function GET(request: NextRequest) {
                 recipientEmail: true,
                 tokenExpiresAt: true,
                 downloadToken: true,
+                // Scan information
+                scanStatus: true,
+                scanResult: true,
+                scannedAt: true,
+                scanEngine: true,
                 // Explicitly DO NOT select filePath, iv, authTag here - not needed for list display
             },
             orderBy: {
@@ -84,6 +94,11 @@ export async function GET(request: NextRequest) {
                 tokenExpiresAt: file.tokenExpiresAt,
                 downloadToken: file.downloadToken, // Include token for the 'View' link URL
                 status: status, // Include the calculated status
+                // Scan information
+                scanStatus: file.scanStatus,
+                scanResult: file.scanResult,
+                scannedAt: file.scannedAt,
+                scanEngine: file.scanEngine,
             };
         });
 
