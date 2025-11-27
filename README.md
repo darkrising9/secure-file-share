@@ -1,7 +1,7 @@
 # Secure File Sharing V2
 SecureShare is a secure file-sharing platform that allows users to upload, encrypt, and share files safely. The system uses AES-256 encryption to ensure file security, and download links are generated with 24hr expiry to prevent unauthorized access. The project aims to address issues with secure file sharing and how it can be applied in educational institutions.
 
-V2 aimed to improve the UI with color pallete changes, enhanced the upload pipeline and added a step of malware scanning with the help of Windows Defender for the files that are being uploaded. Additionally, developed an activity log that records and logs all user actions improving the security posture of the application.
+V2 focused on improving the user interface by updating the color palette, enhancing the upload pipeline, and adding a malware scanning step using Windows Defender for uploaded files. Additionally, an activity log was developed to record and track all user actions, further strengthening the application's security posture.
 
 # Updated Project Screencaps
 
