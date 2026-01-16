@@ -13,6 +13,8 @@ export default function UploadPage() {
     const [downloadUrl, setDownloadUrl] = useState("");
     const [isUploading, setIsUploading] = useState(false);
     const [recipientEmailForCard, setRecipientEmailForCard] = useState("");
+    const [scanResult, setScanResult] = useState<any>(null);
+    const [isScanning, setIsScanning] = useState(false);
 
     
     const handleFileUpload = async (file: File, recipientEmail: string) => {
@@ -23,7 +25,9 @@ export default function UploadPage() {
         }
 
         setIsUploading(true);
-        setRecipientEmailForCard(recipientEmail); 
+        setIsScanning(true);
+        setRecipientEmailForCard(recipientEmail);
+        setScanResult(null);
 
         try {
             const formData = new FormData();
@@ -42,6 +46,13 @@ export default function UploadPage() {
 
             if (!response.ok) {
                 console.error("Upload API Error Response:", responseData);
+                
+                // Check if it's a scan-related error
+                if (responseData.scanResult) {
+                    setScanResult(responseData.scanResult);
+                    setIsScanning(false);
+                }
+                
                 throw new Error(responseData.error || `Upload failed (Status: ${response.status})`);
             }
 
@@ -49,6 +60,12 @@ export default function UploadPage() {
             if (responseData.success === true && responseData.downloadUrl) {
                 const receivedUrl = responseData.downloadUrl;
                 console.log("SUCCESS: API response OK and downloadUrl received:", receivedUrl);
+
+                // Store scan result
+                if (responseData.scanResult) {
+                    setScanResult(responseData.scanResult);
+                }
+                setIsScanning(false);
 
                 console.log("Attempting to set state: setDownloadUrl, setUploadComplete(true)");
                 setDownloadUrl(receivedUrl);
@@ -75,8 +92,11 @@ export default function UploadPage() {
             setUploadComplete(false); // Reset state on error
             setDownloadUrl("");
             setRecipientEmailForCard("");
+            setScanResult(null);
+            setIsScanning(false);
         } finally {
             setIsUploading(false);
+            setIsScanning(false);
         }
     };
 
@@ -86,6 +106,8 @@ export default function UploadPage() {
         setUploadComplete(false);
         setDownloadUrl("");
         setRecipientEmailForCard("");
+        setScanResult(null);
+        setIsScanning(false);
     };
 
 
@@ -115,14 +137,104 @@ export default function UploadPage() {
 
                     <CardContent>
                         {!uploadComplete ? (
-                            <FileUploadCard onUploadComplete={handleFileUpload} isUploading={isUploading} />
+                            <>
+                                <FileUploadCard onUploadComplete={handleFileUpload} isUploading={isUploading} />
+                                
+                                {/* Scanning Status */}
+                                {isScanning && (
+                                    <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                                        <div className="flex items-center gap-2">
+                                            <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                                            <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Scanning file for threats...</span>
+                                        </div>
+                                        <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">Please wait while we check your file for security threats.</p>
+                                    </div>
+                                )}
+                                
+                                {/* Scan Result Display */}
+                                {scanResult && (
+                                    <div className={`mt-4 p-4 rounded-lg border ${
+                                        scanResult.status === 'CLEAN' 
+                                            ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                                            : scanResult.status === 'THREAT_DETECTED'
+                                            ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' 
+                                            : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'
+                                    }`}>
+                                        <div className="flex items-center gap-2 mb-2">
+                                            {scanResult.status === 'CLEAN' ? (
+                                                <Shield className="h-4 w-4 text-green-600 dark:text-green-400" />
+                                            ) : scanResult.status === 'THREAT_DETECTED' ? (
+                                                <Shield className="h-4 w-4 text-red-600 dark:text-red-400" />
+                                            ) : (
+                                                <Shield className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                                            )}
+                                            <span className={`text-sm font-medium ${
+                                                scanResult.status === 'CLEAN' 
+                                                    ? 'text-green-700 dark:text-green-300'
+                                                    : scanResult.status === 'THREAT_DETECTED'
+                                                    ? 'text-red-700 dark:text-red-300'
+                                                    : 'text-yellow-700 dark:text-yellow-300'
+                                            }`}>
+                                                {scanResult.status === 'CLEAN' ? 'File Scanned - Clean' :
+                                                 scanResult.status === 'THREAT_DETECTED' ? 'Threat Detected' :
+                                                 'Scan Error'}
+                                            </span>
+                                        </div>
+                                        
+                                        <p className={`text-xs mb-1 ${
+                                            scanResult.status === 'CLEAN' 
+                                                ? 'text-green-600 dark:text-green-400'
+                                                : scanResult.status === 'THREAT_DETECTED'
+                                                ? 'text-red-600 dark:text-red-400'
+                                                : 'text-yellow-600 dark:text-yellow-400'
+                                        }`}>
+                                            Scanned by: {scanResult.engine}
+                                        </p>
+                                        
+                                        {scanResult.threatName && (
+                                            <p className="text-xs text-red-700 dark:text-red-300 font-medium">
+                                                Threat: {scanResult.threatName}
+                                            </p>
+                                        )}
+                                        
+                                        {scanResult.details && (
+                                            <p className={`text-xs mt-2 ${
+                                                scanResult.status === 'CLEAN' 
+                                                    ? 'text-green-600 dark:text-green-400'
+                                                    : scanResult.status === 'THREAT_DETECTED'
+                                                    ? 'text-red-600 dark:text-red-400'
+                                                    : 'text-yellow-600 dark:text-yellow-400'
+                                            }`}>
+                                                {scanResult.details}
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+                            </>
                         ) : (
                             // Passes all required props
-                            <DownloadLinkCard
-                                downloadLink={downloadUrl}
-                                email={recipientEmailForCard}
-                                onReset={handleReset}
-                             />
+                            <>
+                                <DownloadLinkCard
+                                    downloadLink={downloadUrl}
+                                    email={recipientEmailForCard}
+                                    onReset={handleReset}
+                                />
+                                
+                                {/* Show scan result for successful uploads */}
+                                {scanResult && (
+                                    <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                                        <div className="flex items-center gap-2">
+                                            <Shield className="h-4 w-4 text-green-600 dark:text-green-400" />
+                                            <span className="text-sm font-medium text-green-700 dark:text-green-300">
+                                                Security Check Passed
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                                            File scanned by {scanResult.engine} - No threats detected
+                                        </p>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </CardContent>
 
@@ -130,6 +242,7 @@ export default function UploadPage() {
                         <div className="text-sm text-gray-500 dark:text-gray-400">
                             <p className="font-medium">Security Information:</p>
                             <ul className="list-disc list-inside space-y-1 mt-2">
+                                <li>Files are scanned for malware before encryption</li>
                                 <li>Files are encrypted using AES-256 encryption</li>
                                 <li>Download links expire after 24 hours</li>
                                 <li>All file transfers are logged for security purposes</li>

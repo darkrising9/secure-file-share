@@ -7,7 +7,9 @@ import fs from 'fs';
 import path from 'path';
 import { Readable } from 'stream';
 import { getCurrentUser } from '@/lib/auth-utils';
-
+import { logActivity } from '@/lib/logger';
+import { ActionType } from '@prisma/client';
+import { getClientIpFromHeaders } from '@/lib/request-ip';
 
 const prisma = new PrismaClient();
 const UPLOAD_DIR = path.join(process.cwd(), "encrypted_uploads");
@@ -92,7 +94,10 @@ export async function GET(request: NextRequest, { params }: { params: { token: s
             return NextResponse.json({ success: false, error: "Access denied. You are not authorized to download this file." }, { status: 403 }); // 403 Forbidden
         }
         console.log(`User ${currentUser.email} authorized for file: ${fileRecord.fileName}`);
-
+        // --- VVV ADD DOWNLOAD LOG VVV ---
+        const ip = getClientIpFromHeaders(request.headers as any);
+        await logActivity(currentUser.email, ActionType.FILE_DOWNLOAD, `Downloaded file: '${fileRecord.fileName}' (ID: ${fileRecord.id})`, ip);
+// --- ^^^ ---
 
         // Verify Encrypted File Exists on Disk
         const encryptedFilePath = fileRecord.filePath;

@@ -3,6 +3,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { getCurrentUser } from '@/lib/auth-utils';
+import { logActivity } from '@/lib/logger';
+import { ActionType } from '@prisma/client';
+import { getClientIpFromHeaders } from '@/lib/request-ip';
 
 const prisma = new PrismaClient();
 
@@ -60,7 +63,10 @@ export async function DELETE(request: NextRequest, { params: { fileId: fileIdPar
             return NextResponse.json({ success: false, error: "You are not authorized to revoke this file share." }, { status: 403 });
         }
         console.log(`User ${currentUser.id} authorized to revoke file ${fileId}`);
-
+        // --- VVV ADD REVOKE LOG VVV ---
+        const ip = getClientIpFromHeaders(request.headers as any);
+        await logActivity(currentUser.email, ActionType.FILE_REVOKE, `User revoked access to file ID: ${fileId}`, ip);
+        // --- ^^^ ---
         // 5. Update the File Record to Revoke Access
         await prisma.file.update({
             where: { id: fileId }, // Use correctly typed fileId
