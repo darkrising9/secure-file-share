@@ -29,3 +29,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+.COMPREHENSIVE_TECHNICAL_REPORT.md
+COMPREHENSIVE_TECHNICAL_REPORT.md
+.SYSTEM_DESIGN_DOCUMENT.md
+SYSTEM_DESIGN_DOCUMENT.md
+.project_structure.txt
+project_structure.txt
+.WARP.md
+WARP.md
